@@ -28,15 +28,14 @@ def deal_url(url):
     url = url.replace("'http://","")
     url = url.replace("'","")
     url_list = url.split("/")
+    if len(url_list) == 1:
+        url_list.append("")
     return url_list
 
 def get_operation():
     if request_list[2] == DETAIL:
         url_list = deal_url(request_list[3])
-        if len(url_list) == 1:
-            result_list = send_receive_data(url_list[0],"")
-        else:
-            result_list = send_receive_data(url_list[0], url_list[1])
+        result_list = send_receive_data(url_list[0], url_list[1])
 
         result_head = result_list[0]
         result_body = result_list[1]
@@ -45,19 +44,13 @@ def get_operation():
         print(result_body)
     elif request_list[2] == HEAD:
         url_list = deal_url(request_list[4])
-        if len(url_list) == 1:
-            result_list = send_receive_data(url_list[0],"")
-        else:
-            result_list = send_receive_data(url_list[0], url_list[1])
+        result_list = send_receive_data(url_list[0], url_list[1])
 
         result_head = result_list[0]
         print(result_head + "\r\n")
     else:
         url_list = deal_url(request_list[2])
-        if len(url_list) == 1:
-            result_list = send_receive_data(url_list[0],"")
-        else:
-            result_list = send_receive_data(url_list[0], url_list[1])
+        result_list = send_receive_data(url_list[0], url_list[1])
 
         result_body = result_list[1]
         print(result_body)
