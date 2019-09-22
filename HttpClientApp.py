@@ -1,13 +1,16 @@
 import socket
+import json
 
 GET = "get"
 POST = "post"
 DETAIL = "-v"
 HEAD = "-h"
+POST_DATA = "-d"
+POST_FILE = "-f"
 
 def send_receive_data(host,request_url):
-    # print("host: " + host)
-    # print("request_url:" + request_url)
+    print("host: " + host)
+    print("request_url:" + request_url)
     result_list = {}
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_socket.connect((host, 80))
@@ -15,7 +18,7 @@ def send_receive_data(host,request_url):
     request_data = request_line + "\r\n"
     my_socket.send(request_data.encode('utf-8'))
 
-    data = my_socket.recv(1024)
+    data = my_socket.recv(10240)
     data = data.decode('utf-8')
     result_head,result_body = data.split('\r\n\r\n',1)
     result_list[0] = result_head
@@ -26,6 +29,7 @@ def send_receive_data(host,request_url):
 
 def deal_url(url):
     url = url.replace("'http://","")
+    url = url.replace("'https://", "")
     url = url.replace("'","")
     url_list = url.split("/")
     if len(url_list) == 1:
@@ -55,8 +59,8 @@ def get_operation():
         result_body = result_list[1]
         print(result_body)
 
-    # with open('web.html', 'wb') as f:
-    #     f.write(result_body.encode('utf-8'))
+    with open('web.html', 'wb') as f:
+        f.write(result_body.encode('utf-8'))
 
 
 def post_operation():
@@ -77,7 +81,7 @@ def deal_input():
     raw_request = input().lower().split()
     print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
-        print("Shit! Input again!")
+        print("Input again!")
         raw_request = input().lower().split()
     request_list = raw_request
 
