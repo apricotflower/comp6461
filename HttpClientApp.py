@@ -81,13 +81,14 @@ def get_operation():
         result_body = result_list[1]
         print(result_body)
 
-    # print(result_head + "\r\n")
-    # print(result_body)
-
-
     if request_list[-2] == OUTPUT:
         with open(request_list[-1], 'wb') as f:
-            o = result_head + "\r\n" + result_body
+            if result_head == "":
+                o = result_body
+            elif result_body == "":
+                o = result_head + "\r\n"
+            else:
+                o = result_head + "\r\n" + result_body
             f.write(o.encode('utf-8'))
 
 
@@ -142,7 +143,12 @@ def post_operation():
 
     if request_list[-2] == OUTPUT:
         with open(request_list[-1], 'wb') as f:
-            o = result_head + "\r\n" + result_body
+            if result_head == "":
+                o = result_body
+            elif result_body == "":
+                o = result_head + "\r\n"
+            else:
+                o = result_head + "\r\n" + result_body
             f.write(o.encode('utf-8'))
 
 
