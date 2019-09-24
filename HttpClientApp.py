@@ -1,6 +1,6 @@
 import socket
 import json
-
+import ssl
 
 GET = "get"
 POST = "post"
@@ -20,7 +20,9 @@ def send_receive_data(host, request_url, operation, request_content_type, reques
     request = ""
     result_list = {}
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect((host, 80))
+    my_socket.connect((host, 443))
+    my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
+                               ssl_version = ssl.PROTOCOL_SSLv23)
     if operation == GET:
         request_line = "GET /"+ request_url + " HTTP/1.0\r\n"
         request = request_line + "\r\n"
@@ -34,15 +36,18 @@ def send_receive_data(host, request_url, operation, request_content_type, reques
         request_content_length = "Content-Length: " + str(len(request_data))
         request = 'POST /' + request_url + ' HTTP/1.0\r\n' + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
 
-    my_socket.send(request.encode('utf-8'))
+    # my_socket.send(request.encode('utf-8'))
+    my_socket.send(request.encode('ISO-8859-1'))
 
     data = my_socket.recv(10240)
-    data = data.decode('utf-8')
-    result_head, result_body = data.split('\r\n\r\n', 1)
+    # print(data.decode('ISO-8859-1'))
+    result_head, result_body = data.decode('ISO-8859-1').split('\r\n\r\n', 1)
+    # result_head, result_body = data.decode('utf-8').split('\r\n\r\n', 1)
     result_list[0] = result_head
     result_list[1] = result_body
 
     my_socket.close()
+
     return result_list
 
 
