@@ -11,7 +11,13 @@ POST_FILE = "-f"
 OUTPUT = "-o"
 
 
-def send_receive_data(host, request_url, operation, request_content_type, request_data):
+def send_receive_data(host, path, query, port, operation, request_content_type, request_data):
+    if path == "" and query == "":
+        request_url = ""
+    elif query == "":
+        request_url = path
+    else:
+        request_url = path + "?" +query
     print("host: " + host)
     print("request_url:" + request_url)
     print("request_content_type: " + request_content_type)
@@ -20,10 +26,10 @@ def send_receive_data(host, request_url, operation, request_content_type, reques
     request = ""
 
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect((host, 443))
-    # my_socket.connect((host, 80))
-    my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
-                               ssl_version = ssl.PROTOCOL_SSLv23)
+    # my_socket.connect((host, 443))
+    my_socket.connect((host, port))
+    # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
+    #                            ssl_version = ssl.PROTOCOL_SSLv23)
     if operation == GET:
         request_line = "GET /" + request_url + " HTTP/1.0\r\n"
         request = request_line + "\r\n"
@@ -43,12 +49,27 @@ def send_receive_data(host, request_url, operation, request_content_type, reques
 
 
 def deal_url(url):
-    url = url.replace("http://", "")
-    url = url.replace("https://", "")
-    url_list = url.split("/")
-    if len(url_list) == 1:
-        url_list.append("")
-    return url_list
+    p_url = urlparse(url)
+    host = p_url.hostname
+    # print("k_host: " + host)
+    port = p_url.port
+    print("k_port: " + str(port))
+    query = p_url.query
+    print("k_query: " + query)
+    path = p_url.path
+    print("k_path: " + path)
+
+    if port == None:
+        port = 80
+
+    return host, path, query, port
+
+    # url = url.replace("http://", "")
+    # url = url.replace("https://", "")
+    # url_list = url.split("/")
+    # if len(url_list) == 1:
+    #     url_list.append("")
+    # return url_list
 
 
 def get_operation():
@@ -70,9 +91,9 @@ def get_operation():
             print_in_file = True
             file_name = request_list[index+1]
         if "://" in element:
-            url_list = deal_url(element)
+            host, path, query, port = deal_url(element)
 
-    result_head, result_body = send_receive_data(url_list[0], url_list[1], GET, "", "")
+    result_head, result_body = send_receive_data(host, path, query, port, GET, "", "")
 
     if print_detail:
         output_content = result_head + "\r\n" + result_body
@@ -133,9 +154,9 @@ def post_operation():
             f = open(request_list[index+1], 'r')
             request_data = f.read()
         if "://" in element:
-            url_list = deal_url(element)
+            host, path, query, port = deal_url(element)
 
-    result_head, result_body = send_receive_data(url_list[0], url_list[1], POST, key_value, request_data)
+    result_head, result_body = send_receive_data(host, path, query, port, POST, key_value, request_data)
 
     if print_detail:
         output_content = result_head + "\r\n" + result_body
