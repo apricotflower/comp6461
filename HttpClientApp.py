@@ -1,5 +1,5 @@
 import socket
-import json
+from urllib.parse import urlparse
 import ssl
 
 GET = "get"
@@ -18,37 +18,28 @@ def send_receive_data(host, request_url, operation, request_content_type, reques
     print("request_data: " + request_data)
     print("**"*20)
     request = ""
-    result_list = {}
+
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     my_socket.connect((host, 443))
+    # my_socket.connect((host, 80))
     my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
                                ssl_version = ssl.PROTOCOL_SSLv23)
     if operation == GET:
-        request_line = "GET /"+ request_url + " HTTP/1.0\r\n"
+        request_line = "GET /" + request_url + " HTTP/1.0\r\n"
         request = request_line + "\r\n"
     elif operation == POST:
-        # host = "httpbin.org"
-        # request_url = "post"
-        # request_content_type = "Content-Type: application/json\r\n"
-        # request_content_length = "Content-Length: 47\r\n\r\n"
-        # request_data = '{"capabilities": {}, "desiredCapabilities": {}}'
-
         request_content_length = "Content-Length: " + str(len(request_data))
         request = 'POST /' + request_url + ' HTTP/1.0\r\n' + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
 
-    # my_socket.send(request.encode('utf-8'))
-    my_socket.send(request.encode('ISO-8859-1'))
+    my_socket.send(request.encode('utf-8'))
+    # my_socket.send(request.encode('ISO-8859-1'))
 
-    data = my_socket.recv(10240)
+    data = my_socket.recv(1024000)
     # print(data.decode('ISO-8859-1'))
-    result_head, result_body = data.decode('ISO-8859-1').split('\r\n\r\n', 1)
-    # result_head, result_body = data.decode('utf-8').split('\r\n\r\n', 1)
-    result_list[0] = result_head
-    result_list[1] = result_body
-
+    # result_head, result_body = data.decode('ISO-8859-1').split('\r\n\r\n', 1)
+    result_head, result_body = data.decode('utf-8').split('\r\n\r\n', 1)
     my_socket.close()
-
-    return result_list
+    return result_head, result_body
 
 
 def deal_url(url):
@@ -61,40 +52,39 @@ def deal_url(url):
 
 
 def get_operation():
-    result_head = ""
-    result_body = ""
+    print_detail = False
+    print_head = False
+    key_value = ""
+    print_in_file = False
+    file_name = ""
+    output_content = ""
+    url_list = ""
 
-    if request_list[2] == DETAIL:
-        url_list = deal_url(request_list[3])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
+    for index, element in enumerate(request_list):
+        if element == DETAIL:
+            print_detail = True
+        if element == HEAD:
+            print_head = True
+            key_value = request_list[index+1]
+        if element == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+        if "://" in element:
+            url_list = deal_url(element)
 
-        result_head = result_list[0]
-        result_body = result_list[1]
+    result_head, result_body = send_receive_data(url_list[0], url_list[1], GET, "", "")
 
-        print(result_head + "\r\n")
-        print(result_body)
-    elif request_list[2] == HEAD:
-        url_list = deal_url(request_list[4])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
-
-        result_head = result_list[0]
-        print(result_head + "\r\n")
+    if print_detail:
+        output_content = result_head + "\r\n" + result_body
+    elif print_head:
+        output_content = result_head + "\r\n"
     else:
-        url_list = deal_url(request_list[2])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
+        output_content = result_body
+    print(output_content)
 
-        result_body = result_list[1]
-        print(result_body)
-
-    if request_list[-2] == OUTPUT:
-        with open(request_list[-1], 'wb') as f:
-            if result_head == "":
-                o = result_body
-            elif result_body == "":
-                o = result_head + "\r\n"
-            else:
-                o = result_head + "\r\n" + result_body
-            f.write(o.encode('utf-8'))
+    if print_in_file:
+        with open(file_name, 'wb') as f:
+            f.write(output_content.encode('utf-8'))
 
 
 # def test_post():
@@ -119,42 +109,43 @@ def get_operation():
 
 
 def post_operation():
-    result_head = ""
-    result_body = ""
+    print_detail = False
+    print_head = False
+    key_value = ""
+    print_in_file = False
+    file_name = ""
+    output_content = ""
+    url_list = ""
+    request_data = ""
 
-    if request_list[2] == DETAIL:
-        url_list = deal_url(request_list[7])
-        if request_list[5] == POST_DATA:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[4],
-                                            request_list[6])
-        elif request_list[5] == POST_FILE:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[4],
-                                            request_list[6])
-        result_head = result_list[0]
-        result_body = result_list[1]
+    for index, element in enumerate(request_list):
+        if element == DETAIL:
+            print_detail = True
+        if element == HEAD:
+            print_head = True
+            key_value = request_list[index+1]
+        if element == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+        if element == POST_DATA:
+            request_data = request_list[index+1]
+        if element == POST_FILE:
+            f = open(request_list[index+1], 'r')
+            request_data = f.read()
+        if "://" in element:
+            url_list = deal_url(element)
 
-        print(result_head + "\r\n")
-        print(result_body)
+    result_head, result_body = send_receive_data(url_list[0], url_list[1], POST, key_value, request_data)
 
-    elif request_list[2] == HEAD:
-        url_list = deal_url(request_list[6])
-        if request_list[4] == POST_DATA:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[3],request_list[5])
-        elif request_list[4] == POST_FILE:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[3],
-                                            request_list[5])
-        result_body = result_list[1]
-        print(result_body)
+    if print_detail:
+        output_content = result_head + "\r\n" + result_body
+    else:
+        output_content = result_body
+    print(output_content)
 
-    if request_list[-2] == OUTPUT:
-        with open(request_list[-1], 'wb') as f:
-            if result_head == "":
-                o = result_body
-            elif result_body == "":
-                o = result_head + "\r\n"
-            else:
-                o = result_head + "\r\n" + result_body
-            f.write(o.encode('utf-8'))
+    if print_in_file:
+        with open(file_name, 'wb') as f:
+            f.write(output_content.encode('utf-8'))
 
 
 def choose_operation():
