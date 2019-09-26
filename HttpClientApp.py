@@ -58,6 +58,9 @@ def deal_url(url):
     print("k_query: " + query)
     path = p_url.path
     print("k_path: " + path)
+    global p_scheme
+    p_scheme = p_url.scheme
+    print("k_schedule: " + p_scheme)
 
     if port is None:
         port = 80
@@ -65,11 +68,38 @@ def deal_url(url):
     return host, path, query, port
 
 
+def analyse_url(host, re_location):
+    if "://" in re_location:
+        target_url = re_location
+    else:
+        target_url = p_scheme + "://" + host + re_location
+    return target_url
+
+
+def start_redirect(host, result_head, url_index):
+    re_location = ""
+    result_head_list = result_head.split("\r\n")
+    print(result_head_list)
+    for line in result_head_list:
+        if "Location:" in line:
+            re_location = line.split(" ")[1].strip()
+            print("re_location: " + re_location)
+
+    if re_location == "":
+        print("No new locaion in response…Redirection fail! ")
+
+    target_url = analyse_url(host, re_location)
+    request_list[url_index] = target_url
+    choose_operation()
+
+
 def get_operation():
     print_detail = False
     key_value = ""
     print_in_file = False
     file_name = ""
+    # host, path, query, port = ""
+    url_index = -1
 
     for index, element in enumerate(request_list):
         if element == DETAIL:
@@ -81,6 +111,7 @@ def get_operation():
             file_name = request_list[index+1]
         if "://" in element:
             host, path, query, port = deal_url(element)
+            url_index = index
 
     result_head, result_body = send_receive_data(host, path, query, port, GET, key_value, "")
 
@@ -93,6 +124,10 @@ def get_operation():
     if print_in_file:
         with open(file_name, 'wb') as f:
             f.write(output_content.encode('utf-8'))
+
+    if "302" in result_head.split("\r\n")[0]:
+        print("\r\n" + "Start redirect……")
+        start_redirect(host, result_head, url_index)
 
 
 # def test_post():
@@ -122,6 +157,7 @@ def post_operation():
     print_in_file = False
     file_name = ""
     request_data = ""
+    # host, path, query, port = ""
 
     for index, element in enumerate(request_list):
         if element == DETAIL:
