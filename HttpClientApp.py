@@ -70,7 +70,6 @@ def get_operation():
     key_value = ""
     print_in_file = False
     file_name = ""
-    output_content = ""
 
     for index, element in enumerate(request_list):
         if element == DETAIL:
@@ -122,7 +121,6 @@ def post_operation():
     key_value = ""
     print_in_file = False
     file_name = ""
-    output_content = ""
     request_data = ""
 
     for index, element in enumerate(request_list):
