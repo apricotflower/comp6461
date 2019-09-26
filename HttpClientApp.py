@@ -31,7 +31,7 @@ def send_receive_data(host, path, query, port, operation, request_content_type, 
     # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
     #                            ssl_version = ssl.PROTOCOL_SSLv23)
     if operation == GET:
-        request_line = "GET /" + request_url + " HTTP/1.0\r\n"
+        request_line = "GET /" + request_url + " HTTP/1.0\r\n" + request_content_type + "\r\n"
         request = request_line + "\r\n"
     elif operation == POST:
         request_content_length = "Content-Length: " + str(len(request_data))
@@ -59,33 +59,23 @@ def deal_url(url):
     path = p_url.path
     print("k_path: " + path)
 
-    if port == None:
+    if port is None:
         port = 80
 
     return host, path, query, port
 
-    # url = url.replace("http://", "")
-    # url = url.replace("https://", "")
-    # url_list = url.split("/")
-    # if len(url_list) == 1:
-    #     url_list.append("")
-    # return url_list
-
 
 def get_operation():
     print_detail = False
-    print_head = False
     key_value = ""
     print_in_file = False
     file_name = ""
     output_content = ""
-    url_list = ""
 
     for index, element in enumerate(request_list):
         if element == DETAIL:
             print_detail = True
         if element == HEAD:
-            print_head = True
             key_value = request_list[index+1]
         if element == OUTPUT:
             print_in_file = True
@@ -93,12 +83,10 @@ def get_operation():
         if "://" in element:
             host, path, query, port = deal_url(element)
 
-    result_head, result_body = send_receive_data(host, path, query, port, GET, "", "")
+    result_head, result_body = send_receive_data(host, path, query, port, GET, key_value, "")
 
     if print_detail:
         output_content = result_head + "\r\n" + result_body
-    elif print_head:
-        output_content = result_head + "\r\n"
     else:
         output_content = result_body
     print(output_content)
@@ -131,12 +119,10 @@ def get_operation():
 
 def post_operation():
     print_detail = False
-    print_head = False
     key_value = ""
     print_in_file = False
     file_name = ""
     output_content = ""
-    url_list = ""
     request_data = ""
 
     for index, element in enumerate(request_list):
@@ -189,9 +175,6 @@ def my_split(data):
 
     separator_index = [0]
     for index, character in enumerate(data):
-        # print("separator_index: " + str(separator_index))
-        # print("character:" + character)
-        # print("index: " + str(index))
         if character == left:
             flag += 1
         elif character == right:
@@ -210,28 +193,25 @@ def my_split(data):
         print("Data syntax error! Input again!")
         return -1
     raw_request = [data[i:j].strip(separator) for i, j in zip(separator_index, separator_index[1:])]
-    # raw_request.append("")
-    # raw_request.append("")
     return raw_request
 
 
 def deal_input():
     global request_list
-    raw_request = my_split(input().replace("'", ""))
+    raw_request = my_split(input().strip().replace("'", ""))
     print("request: " + str(raw_request))
     while raw_request == -1:
-        raw_request = my_split(input().replace("'", ""))
+        raw_request = my_split(input().strip().replace("'", ""))
         print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
         print("Input again!")
-        raw_request = my_split(input().replace("'", ""))
+        raw_request = my_split(input().strip().replace("'", ""))
     request_list = raw_request
 
 
 def main():
     deal_input()
     choose_operation()
-    # test_post()
 
 
 main()
