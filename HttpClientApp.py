@@ -31,11 +31,12 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
         request_content_length = "Content-Length: " + str(len(request_data))
         request = 'POST /' + abs_path + ' HTTP/1.0\r\n' + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
 
-    # my_socket.send(request.encode('utf-8'))
-    my_socket.send(request.encode('ISO-8859-1'))
+    my_socket.send(request.encode('utf-8'))
+    # my_socket.send(request.encode('ISO-8859-1'))
     data = ""
     while True:
-        buf_data = my_socket.recv(1024).decode('ISO-8859-1')
+        # buf_data = my_socket.recv(1024).decode('ISO-8859-1')
+        buf_data = my_socket.recv(1024).decode('utf-8')
         data = data + buf_data
         if buf_data == "":
             break
