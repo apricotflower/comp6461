@@ -1,5 +1,5 @@
 import socket
-import json
+import urllib.parse
 import ssl
 
 GET = "get"
@@ -11,150 +11,179 @@ POST_FILE = "-f"
 OUTPUT = "-o"
 
 
-def send_receive_data(host, request_url, operation, request_content_type, request_data):
-    print("host: " + host)
-    print("request_url:" + request_url)
-    print("request_content_type: " + request_content_type)
-    print("request_data: " + request_data)
-    print("**"*20)
+def send_receive_data(host, abs_path, port, operation, request_content_type, request_data):
+    # print("host: " + host)
+    # print("abs_url:" + abs_path)
+    # print("request_content_type: " + request_content_type)
+    # print("request_data: " + request_data)
+    # print("**"*20)
     request = ""
-    result_list = {}
+
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect((host, 443))
-    my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
-                               ssl_version = ssl.PROTOCOL_SSLv23)
+    # my_socket.connect((host, 443))
+    my_socket.connect((host, port))
+    # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
+    #                            ssl_version = ssl.PROTOCOL_SSLv23)
     if operation == GET:
-        request_line = "GET /"+ request_url + " HTTP/1.0\r\n"
+        request_line = "GET /" + abs_path + " HTTP/1.0\r\n" + request_content_type + "\r\n"
         request = request_line + "\r\n"
     elif operation == POST:
-        # host = "httpbin.org"
-        # request_url = "post"
-        # request_content_type = "Content-Type: application/json\r\n"
-        # request_content_length = "Content-Length: 47\r\n\r\n"
-        # request_data = '{"capabilities": {}, "desiredCapabilities": {}}'
-
         request_content_length = "Content-Length: " + str(len(request_data))
-        request = 'POST /' + request_url + ' HTTP/1.0\r\n' + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
+        request = 'POST /' + abs_path + ' HTTP/1.0\r\n' + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
 
-    # my_socket.send(request.encode('utf-8'))
-    my_socket.send(request.encode('ISO-8859-1'))
-
-    data = my_socket.recv(10240)
-    # print(data.decode('ISO-8859-1'))
-    result_head, result_body = data.decode('ISO-8859-1').split('\r\n\r\n', 1)
-    # result_head, result_body = data.decode('utf-8').split('\r\n\r\n', 1)
-    result_list[0] = result_head
-    result_list[1] = result_body
-
+    my_socket.send(request.encode('utf-8'))
+    # my_socket.send(request.encode('ISO-8859-1'))
+    data = ""
+    while True:
+        # buf_data = my_socket.recv(1024).decode('ISO-8859-1')
+        buf_data = my_socket.recv(1024).decode('utf-8')
+        data = data + buf_data
+        if buf_data == "":
+            break
+    result_head, result_body = data.split('\r\n\r\n', 1)
     my_socket.close()
-
-    return result_list
+    return result_head, result_body
 
 
 def deal_url(url):
-    url = url.replace("http://", "")
-    url = url.replace("https://", "")
-    url_list = url.split("/")
-    if len(url_list) == 1:
-        url_list.append("")
-    return url_list
+    p_url = urllib.parse.urlparse(url)
+
+    global p_scheme
+    p_scheme = p_url.scheme
+    # print("k_schedule: " + p_scheme)
+
+    host = p_url.netloc
+    # print("k_host: " + host)
+
+    path = p_url.path
+    # print("k_path: " + path)
+
+    params = p_url.params
+    if params != "":
+        params = ";" + params
+    # print("k_params: " + params)
+
+    query = p_url.query
+    if query != "":
+        query = "?" + query
+    # print("k_query: " + query)
+
+    fragment = p_url.fragment
+    if fragment != "":
+        fragment = "#" + fragment
+    # print("k_fragment: " + fragment)
+
+    port = p_url.port
+    # print("k_port: " + str(port))
+    if port is None:
+        port = 80
+
+    abs_path = path + params + query + fragment
+
+    return host, abs_path, port
+
+
+def redirect_analyse_url(host, re_location):
+    if "://" in re_location:
+        target_url = re_location
+    else:
+        target_url = p_scheme + "://" + host + re_location
+    return target_url
+
+
+def start_redirect(host, result_head, url_index):
+    re_location = ""
+    result_head_list = result_head.split("\r\n")
+    # print(result_head_list)
+    for line in result_head_list:
+        if "Location:" in line:
+            re_location = line.split(" ")[1].strip()
+            # print("re_location: " + re_location)
+
+    if re_location == "":
+        print("No new location in response…Redirection fail! ")
+
+    target_url = redirect_analyse_url(host, re_location)
+    request_list[url_index] = target_url
+    choose_operation()
+
+
+def decide_redirection(host, result_head, url_index):
+    if "302" in result_head.split("\r\n")[0] or "301" in result_head.split("\r\n")[0]:
+        print("\r\n" + "**"*80 + "\r\n" + "Start redirect……")
+        start_redirect(host, result_head, url_index)
+
+
+def output(print_detail, print_in_file, result_head, result_body, file_name):
+    if print_detail:
+        output_content = result_head + "\r\n" + result_body
+    else:
+        output_content = result_body
+    print(output_content)
+
+    if print_in_file:
+        with open(file_name, 'wb') as f:
+            output_content = output_content + "\r\n\r\n"
+            f.write(output_content.encode('utf-8'))
 
 
 def get_operation():
-    result_head = ""
-    result_body = ""
+    print_detail = False
+    key_value = ""
+    print_in_file = False
+    file_name = ""
+    url_index = -1
 
-    if request_list[2] == DETAIL:
-        url_list = deal_url(request_list[3])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
+    for index, element in enumerate(request_list):
+        if element == DETAIL:
+            print_detail = True
+        if element == HEAD:
+            key_value = request_list[index+1]
+        if element == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
 
-        result_head = result_list[0]
-        result_body = result_list[1]
+        if "://" in element:
+            host, abs_path, port = deal_url(element)
+            url_index = index
 
-        print(result_head + "\r\n")
-        print(result_body)
-    elif request_list[2] == HEAD:
-        url_list = deal_url(request_list[4])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
+    result_head, result_body = send_receive_data(host, abs_path, port, GET, key_value, "")
 
-        result_head = result_list[0]
-        print(result_head + "\r\n")
-    else:
-        url_list = deal_url(request_list[2])
-        result_list = send_receive_data(url_list[0], url_list[1], GET, "", "")
+    output(print_detail, print_in_file, result_head, result_body, file_name)
 
-        result_body = result_list[1]
-        print(result_body)
-
-    if request_list[-2] == OUTPUT:
-        with open(request_list[-1], 'wb') as f:
-            if result_head == "":
-                o = result_body
-            elif result_body == "":
-                o = result_head + "\r\n"
-            else:
-                o = result_head + "\r\n" + result_body
-            f.write(o.encode('utf-8'))
-
-
-# def test_post():
-#     host = "httpbin.org"
-#     request_url = "post"
-#     request_content_type = "Content-Type: application/json\r\n"
-#     # request_d = '{"capabilities": {}, "desiredCapabilities": {}}'
-#     request_d = '{"Assignment": 1}'
-#     request_content_length = "Content-Length: "+ str(len(request_d)) +"\r\n\r\n"
-#     print(len(request_d))
-#     request_data = 'POST /' + request_url + ' HTTP/1.0\r\n' + request_content_type + request_content_length + request_d
-#     # print(request_data)
-#     s = socket.socket(
-#         socket.AF_INET, socket.SOCK_STREAM)
-#     s.connect((host, 80))
-#     s.send(request_data.encode('utf-8'))
-#     response = s.recv(10240)
-#     data = response.decode('utf-8')
-#     result_head, result_body = data.split('\r\n\r\n', 1)
-#     print(result_head)
-#     print(result_body)
+    decide_redirection(host, result_head, url_index)
 
 
 def post_operation():
-    result_head = ""
-    result_body = ""
+    print_detail = False
+    key_value = ""
+    print_in_file = False
+    file_name = ""
+    request_data = ""
+    url_index = -1
 
-    if request_list[2] == DETAIL:
-        url_list = deal_url(request_list[7])
-        if request_list[5] == POST_DATA:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[4],
-                                            request_list[6])
-        elif request_list[5] == POST_FILE:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[4],
-                                            request_list[6])
-        result_head = result_list[0]
-        result_body = result_list[1]
+    for index, element in enumerate(request_list):
+        if element == DETAIL:
+            print_detail = True
+        if element == HEAD:
+            key_value = request_list[index+1]
+        if element == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+        if element == POST_DATA:
+            request_data = request_list[index+1]
+        if element == POST_FILE:
+            f = open(request_list[index+1], 'r')
+            request_data = f.read()
+        if "://" in element:
+            host, abs_path, port = deal_url(element)
+            url_index = index
 
-        print(result_head + "\r\n")
-        print(result_body)
+    result_head, result_body = send_receive_data(host, abs_path, port, POST, key_value, request_data)
 
-    elif request_list[2] == HEAD:
-        url_list = deal_url(request_list[6])
-        if request_list[4] == POST_DATA:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[3],request_list[5])
-        elif request_list[4] == POST_FILE:
-            result_list = send_receive_data(url_list[0], url_list[1], POST, request_list[3],
-                                            request_list[5])
-        result_body = result_list[1]
-        print(result_body)
+    output(print_detail, print_in_file, result_head, result_body, file_name)
 
-    if request_list[-2] == OUTPUT:
-        with open(request_list[-1], 'wb') as f:
-            if result_head == "":
-                o = result_body
-            elif result_body == "":
-                o = result_head + "\r\n"
-            else:
-                o = result_head + "\r\n" + result_body
-            f.write(o.encode('utf-8'))
+    decide_redirection(host, result_head, url_index)
 
 
 def choose_operation():
@@ -177,9 +206,6 @@ def my_split(data):
 
     separator_index = [0]
     for index, character in enumerate(data):
-        # print("separator_index: " + str(separator_index))
-        # print("character:" + character)
-        # print("index: " + str(index))
         if character == left:
             flag += 1
         elif character == right:
@@ -198,28 +224,25 @@ def my_split(data):
         print("Data syntax error! Input again!")
         return -1
     raw_request = [data[i:j].strip(separator) for i, j in zip(separator_index, separator_index[1:])]
-    # raw_request.append("")
-    # raw_request.append("")
     return raw_request
 
 
 def deal_input():
     global request_list
-    raw_request = my_split(input().replace("'", ""))
-    print("request: " + str(raw_request))
+    raw_request = my_split(input().strip().replace("'", ""))
+    # print("request: " + str(raw_request))
     while raw_request == -1:
-        raw_request = my_split(input().replace("'", ""))
+        raw_request = my_split(input().strip().replace("'", ""))
         print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
         print("Input again!")
-        raw_request = my_split(input().replace("'", ""))
+        raw_request = my_split(input().strip().replace("'", ""))
     request_list = raw_request
 
 
 def main():
     deal_input()
     choose_operation()
-    # test_post()
 
 
 main()
