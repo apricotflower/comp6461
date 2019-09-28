@@ -9,6 +9,7 @@ HEAD = "-h"
 POST_DATA = "-d"
 POST_FILE = "-f"
 OUTPUT = "-o"
+HELP = "help"
 
 
 def send_receive_data(host, abs_path, port, operation, request_content_type, request_data):
@@ -102,6 +103,7 @@ def start_redirect(host, result_head, url_index):
 
     if re_location == "":
         print("No new location in response…Redirection fail! ")
+        return
 
     target_url = redirect_analyse_url(host, re_location)
     request_list[url_index] = target_url
@@ -135,11 +137,11 @@ def get_operation():
     url_index = -1
 
     for index, element in enumerate(request_list):
-        if element == DETAIL:
+        if element.lower() == DETAIL:
             print_detail = True
-        if element == HEAD:
+        if element.lower() == HEAD:
             key_value = request_list[index+1]
-        if element == OUTPUT:
+        if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
 
@@ -163,16 +165,16 @@ def post_operation():
     url_index = -1
 
     for index, element in enumerate(request_list):
-        if element == DETAIL:
+        if element.lower() == DETAIL:
             print_detail = True
-        if element == HEAD:
+        if element.lower() == HEAD:
             key_value = request_list[index+1]
-        if element == OUTPUT:
+        if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
-        if element == POST_DATA:
+        if element.lower() == POST_DATA:
             request_data = request_list[index+1]
-        if element == POST_FILE:
+        if element.lower() == POST_FILE:
             f = open(request_list[index+1], 'r')
             request_data = f.read()
         if "://" in element:
@@ -186,14 +188,29 @@ def post_operation():
     decide_redirection(host, result_head, url_index)
 
 
+def help_operation():
+    if len(request_list) == 2:
+        print('httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\n    get executes a HTTP GET request and prints the response.\n    post executes a HTTP POST request and prints the response.\n    help prints this screen.\n\nUse "httpc help [command]" for more information about a command.')
+    elif request_list[2].lower() == GET:
+        print('usage: httpc get [-v] [-h key:value] URL\n\nGet executes a HTTP GET request for a given URL.\n\n   -v             Prints the detail of the response such as protocol, status,and headers.\n   -h key:value   Associates headers to HTTP Request with the format\'key:value\'.')
+    elif request_list[2].lower() == POST:
+        print('usage: httpc post [-v] [-h key:value] [-d inline-data] [-f file] URL\n\nPost executes a HTTP POST request for a given URL with inline data or from file.\n\n   -v            Prints the detail of the response such as protocol, status,and headers.\n   -h key:value  Associates headers to HTTP Request with the format\'key:value\'\n   -d string     Associates an inline data to the body HTTP POST request.\n   -f file       Associates the content of a file to the body HTTP POST request.\n\nEither [-d] or [-f] can be used but not both..')
+    request_list.clear()
+    return main()
+
+
 def choose_operation():
     request_operation = request_list[1]
-    if request_operation == GET:
+    if request_operation.lower() == GET:
         get_operation()
-    elif request_operation == POST:
+    elif request_operation.lower() == POST:
         post_operation()
+    elif request_operation.lower() == HELP:
+        help_operation()
     else:
-        print("wrong operation!")
+        print("Wrong operation!")
+        request_list.clear()
+        main()
 
 
 def my_split(data):
@@ -230,12 +247,14 @@ def my_split(data):
 def deal_input():
     global request_list
     raw_request = my_split(input().strip().replace("'", ""))
-    print("request: " + str(raw_request))
+    # print("request: " + str(raw_request))
     while raw_request == -1:
+        raw_request.clear()
         raw_request = my_split(input().strip().replace("'", ""))
-        print("request: " + str(raw_request))
+        # print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
-        print("Input again!")
+        print("Not start with httpc! Input again!")
+        raw_request.clear()
         raw_request = my_split(input().strip().replace("'", ""))
     request_list = raw_request
 
