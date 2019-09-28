@@ -25,13 +25,16 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
     my_socket.connect((host, port))
     # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
     #                            ssl_version = ssl.PROTOCOL_SSLv23)
+    scheme_version_header = " HTTP/1.0\r\n"
+    host_header = "host: " + host + "\r\n"
+    user_agent_header = "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n"
+
     if operation == GET:
-        request_line = "GET /" + abs_path + " HTTP/1.0\r\n" + "host: " + host + "\r\n" + "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n" + request_content_type + "\r\n"
-        # request_line = "GET /" + abs_path + " HTTP/1.0\r\n" + request_content_type + "\r\n"
+        request_line = "GET /" + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n"
         request = request_line + "\r\n"
     elif operation == POST:
         request_content_length = "Content-Length: " + str(len(request_data))
-        request = 'POST /' + abs_path + ' HTTP/1.0\r\n' + "host: " + host + "\r\n" + "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n" + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
+        request = 'POST /' + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
 
     my_socket.send(request.encode('utf-8'))
     # my_socket.send(request.encode('ISO-8859-1'))
