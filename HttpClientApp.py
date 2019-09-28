@@ -96,7 +96,7 @@ def start_redirect(host, result_head, url_index):
     result_head_list = result_head.split("\r\n")
     # print(result_head_list)
     for line in result_head_list:
-        if "Location:" in line:
+        if "location:" in line.lower():
             re_location = line.split(" ")[1].strip()
             # print("re_location: " + re_location)
 
@@ -230,7 +230,7 @@ def my_split(data):
 def deal_input():
     global request_list
     raw_request = my_split(input().strip().replace("'", ""))
-    # print("request: " + str(raw_request))
+    print("request: " + str(raw_request))
     while raw_request == -1:
         raw_request = my_split(input().strip().replace("'", ""))
         print("request: " + str(raw_request))
