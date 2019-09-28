@@ -2,7 +2,7 @@ import socket
 from urllib.parse import urlparse
 import ssl
 
-def doGet(url, cmd, filename = None):
+def doGet(url, cmd, headtype, filename = None):
     _url = urlparse(url)
     host = _url.hostname
     port = _url.port
@@ -16,14 +16,9 @@ def doGet(url, cmd, filename = None):
         path += "?" + urlQuery
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.connect((host, port))
-
-    # tcp_socket = ssl.wrap_socket(tcp_socket, keyfile=None, certfile=None, server_side=False, cert_reqs=ssl.CERT_NONE,
-    #                             ssl_version=ssl.PROTOCOL_SSLv23)
-
     request_line = 'GET ' + path + ' HTTP/1.1\r\n'
-    #header is as a option in command
     request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
-    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + 'Content-Type: application/x-www-form-urlencoded; charset=utf-8 \r\n' + '\r\n'
+    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype + '; charset=utf-8 \r\n' + '\r\n'
     msg = bytes(request_data, encoding = "utf8")
     tcp_socket.send(msg)
     rec = str(tcp_socket.recv(5000), encoding= "utf8")
@@ -50,8 +45,6 @@ def doGet(url, cmd, filename = None):
             print(mes_body + '\r\n')
         elif cmd == "-v":
             print(mes_status + '\r\n'+ mes_header + '\r\n' + mes_body + '\r\n')
-        elif cmd == '-h':
-            print('-h')
     else:
         file = open(filename, "a")
         if cmd == 'query':
@@ -76,47 +69,50 @@ def doGet(url, cmd, filename = None):
 def doPost(type, url, headtype, attach, filename=None):
     if type == '-d':
         inline = attach
-        _url = urlparse(url)
-        host = _url.hostname
-        port = _url.port
-        if port == None:
-            port = 80
-        path = _url.path
-        if path == "":
-            path = '/'
-        tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tcp_socket.connect((host, port))
-        request_line = 'POST ' + path + ' HTTP/1.1\r\n'
-        request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
-        request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype +'; charset=utf-8 \r\n'
-        contentLength = 'Content-Length: ' + str(len(inline)) + '\r\n'
-        # there is a blank in front of data request is the whole request message of json
-        request = request_data + contentLength + '\r\n' + inline
-        msg = bytes(request, encoding="utf8")
-        tcp_socket.send(msg)
-        rec = str(tcp_socket.recv(5000), encoding = "utf-8")
-        rec_mes = rec.splitlines()
-        if rec_mes.__len__ != None:
-            mes_status = rec_mes[0]
-        count = 0
-        for s in rec_mes:
-            count += 1
-            if s == '':
-                break
-        mes_header = '\n'.join(rec_mes[1:count - 1])
-        mes_body = '\n'.join(rec_mes[count:])
-        if filename == None:
-            print(mes_body)
-        else:
-            file = open(filename, "a")
-            wstr = mes_body
-            file.write(wstr + '\r\n')
-            file.close()
-        tcp_socket.close()
     elif type == '-f':
-        pass
+        if attach.__contains__("'"):
+            attach = eval(attach)
+        with open(attach) as f:
+            inline = f.read()
+    _url = urlparse(url)
+    host = _url.hostname
+    port = _url.port
+    if port == None:
+          port = 80
+    path = _url.path
+    if path == "":
+        path = '/'
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.connect((host, port))
+    request_line = 'POST ' + path + ' HTTP/1.1\r\n'
+    request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
+    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype +'; charset=utf-8 \r\n'
+    contentLength = 'Content-Length: ' + str(len(inline)) + '\r\n'
+    # there is a blank in front of data request is the whole request message of json
+    request = request_data + contentLength + '\r\n' + inline
+    msg = bytes(request, encoding="utf8")
+    tcp_socket.send(msg)
+    rec = str(tcp_socket.recv(5000), encoding = "utf-8")
+    rec_mes = rec.splitlines()
+    if rec_mes.__len__ != None:
+        mes_status = rec_mes[0]
+    count = 0
+    for s in rec_mes:
+        count += 1
+        if s == '':
+            break
+    mes_header = '\n'.join(rec_mes[1:count - 1])
+    mes_body = '\n'.join(rec_mes[count:])
+    if filename == None:
+        print(mes_body)
     else:
-        print('Bad instruction try again')
+        if(filename.__contains__("'")):
+            filename = eval(filename)
+        file = open(filename, "a")
+        wstr = mes_body
+        file.write(wstr + '\r\n')
+        file.close()
+    tcp_socket.close()
 
 
 def doRedirect(url):
@@ -176,6 +172,7 @@ if __name__ == '__main__':
                 cmd = ''
                 filename = None
                 url = ''
+                headtype = "Content-Type: application/x-www-form-urlencoded"
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
@@ -183,47 +180,57 @@ if __name__ == '__main__':
                         cmd += gets + " "
                     elif '.txt' in gets:
                         filename = gets
+                    if gets == '-h':
+                        headtype = command_arr[command_arr.index(gets) + 1]
                 if '-v' not in cmd:
                     if '-o' in cmd:
-                        doGet(eval(url), None, filename)
+                        doGet(eval(url), None, headtype, filename)
                         filename = None
                     else:
-                        doGet(eval(url), None)
+                        doGet(eval(url),None, headtype)
                 else:
                     cmdArr = cmd.split(" ")
                     for cmds in cmdArr:
-                        doGet(eval(url), cmds, filename)
+                        doGet(eval(url), cmds, headtype, filename)
                         filename = None
             elif command_arr[1].lower() == 'query':
                 filename = None
+                headtype = 'random'
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
                     elif '.txt' in gets:
                         filename = gets
                 cmd = 'query'
-                doGet(eval(url), cmd, filename)
+                doGet(eval(url), cmd, headtype, filename)
                 filename = None
             elif command_arr[1].lower() == 'header':
                 filename = None
+                headtype = 'random'
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
                     elif '.txt' in gets:
                         filename = gets
                 cmd = 'header'
-                doGet(eval(url), cmd, filename)
+                doGet(eval(url), cmd, headtype, filename)
                 filename = None
             elif command_arr[1].lower() == 'body':
                 filename = None
+                headtype = "Content-Type: application/x-www-form-urlencoded"
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
+                    if gets == '-h':
+                        headtype = command_arr[command_arr.index(gets) + 1]
                     elif '.txt' in gets:
                         filename = gets
                 cmd = 'body'
-                doGet(eval(url), cmd, filename)
+                doGet(eval(url), cmd, headtype, filename)
                 filename = None
+
+
+
             elif command_arr[1].lower() == 'post':
                 filename = None
                 for posts in command_arr:
@@ -231,22 +238,25 @@ if __name__ == '__main__':
                         url = posts
                         if url.__contains__("'"):
                             url = eval(url)
-                    if '.txt' in posts:
-                        filename = posts
                 headtype = ''
                 inline = ''
+                type = ''
                 for index, value in enumerate(command_arr):
                     if value == '-h':
                         headtype = command_arr[index + 1]
+                    elif value == '-o':
+                        filename = command_arr[index + 1]
                     elif value == '-d' or value == '--d':
                         type = '-d'
                         start = command.find('{')
                         fin = command.find('}') + 1
                         inline = command[start:fin]
-                        doPost(type, url, headtype, inline, filename)
-                        filename = None
                     elif value == '-f' or value == '--f':
-                        pass
+                        type = '-f'
+                        inline = command_arr[index + 1]
+                doPost(type, url, headtype, inline, filename)
+                filename = None
+
             elif command_arr[1].lower() == 'redirect':
                 for redirects in command_arr:
                     if '://' in redirects:
@@ -255,9 +265,12 @@ if __name__ == '__main__':
                             url = eval(url)
                 doRedirect(url)
             else:
-                print('Bad instruction try again')
+                print()
         else:
-            print('Bad instruction try again')
+            print()
 
 # httpc get 'http://httpbin.org/get?course=networking&assignment=1'
-# httpc post -h Content-Type:application/json --d '{"Assignment": 1}' http://httpbin.org/post
+#httpc query 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
+# httpc post -h Content-Type:application/json -d '{"Assignment": 1}' 'http://httpbin.org/post'
+# httpc get -v -h Content-Type:application/json 'http://httpbin.org/get?course=networking&assignment=1'
+# httpc post -h Content-Type:application/json -f 'data.txt' 'http://httpbin.org/post'
