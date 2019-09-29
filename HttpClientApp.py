@@ -1,6 +1,6 @@
 import socket
 import urllib.parse
-import ssl
+# import ssl
 
 GET = "get"
 POST = "post"
@@ -45,7 +45,10 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
         data = data + buf_data
         if not buf_data:
             break
-    result_head, result_body = data.split('\r\n\r\n', 1)
+    # print("data: " + data)
+    # result_head, result_body = "", ""
+    # print(len(data.split('\r\n\r\n')))
+    result_head, result_body = data.split('\r\n\r\n')
     my_socket.close()
     return result_head, result_body
 
@@ -111,12 +114,13 @@ def start_redirect(host, result_head, url_index):
 
     target_url = redirect_analyse_url(host, re_location)
     request_list[url_index] = target_url
+    print("Redirect url to: " + target_url)
     choose_operation()
 
 
 def decide_redirection(host, result_head, url_index):
-    if "302" in result_head.split("\r\n")[0] or "301" in result_head.split("\r\n")[0]:
-        print("\r\n" + "**"*80 + "\r\n" + "Start redirect……")
+    if "301" in result_head.split("\r\n")[0] or "302" in result_head.split("\r\n")[0] or "303" in result_head.split("\r\n")[0] or "307" in result_head.split("\r\n")[0] or "308" in result_head.split("\r\n")[0]:
+        print("\r\n" + "**"*80 + "\r\n" + "Start redirecting……")
         start_redirect(host, result_head, url_index)
 
 
@@ -269,4 +273,3 @@ def main():
 
 
 main()
-
