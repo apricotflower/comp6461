@@ -264,7 +264,8 @@ def deal_input():
         print("Not start with httpc! Input again!")
         raw_request.clear()
         raw_request = my_split(input().strip().replace("'", ""))
-    request_list = raw_request
+    request_list = raw_request.copy()
+    raw_request.clear()
 
 
 def main():
