@@ -1,11 +1,11 @@
 import socket
 from urllib.parse import urlparse
-import ssl
 
 def doGet(url, cmd, headtype, filename = None):
     _url = urlparse(url)
     host = _url.hostname
     port = _url.port
+    redirect = 0
     if port == None:
         port = 80
     urlQuery = _url.query
@@ -32,6 +32,18 @@ def doGet(url, cmd, headtype, filename = None):
             break
     mes_header = '\n'.join(rec_mes[1:count - 1])
     mes_body = '\n'.join(rec_mes[count:])
+    location = ''
+    if mes_status.__contains__("301") or mes_status.__contains__("302"):
+        redirect = 1
+        for mes in rec_mes:
+            if 'location' in mes.lower():
+                location = mes.split(' ')[1]
+    else:
+        redirect = 0
+    if location.__contains__("http") or location.__contains__("https"):
+        pass
+    else:
+        location = _url.scheme + "://" + _url.netloc + location
     if filename != None and filename.__contains__("'"):
         filename = eval(filename)
     if filename == None:
@@ -43,28 +55,35 @@ def doGet(url, cmd, headtype, filename = None):
             print(request_data + '\r\n')
         elif cmd == None:
             print(mes_body + '\r\n')
+            if redirect == 1:
+                doGet(location, None, headtype, filename)
         elif cmd == "-v":
             print(mes_status + '\r\n'+ mes_header + '\r\n' + mes_body + '\r\n')
+            if redirect == 1:
+                doGet(location, cmd, headtype, filename)
     else:
         file = open(filename, "a")
         if cmd == 'query':
             wstr =  urlQuery + '\r\n'
-            file.write(wstr)
+            file.write(wstr + '\r\n')
         elif cmd == 'header':
             wstr = request_headers + '\r\n'
-            file.write(wstr)
+            file.write(wstr + '\r\n')
         elif cmd == 'body':
             wstr = request_data + '\r\n'
-            file.write(wstr)
+            file.write(wstr + '\r\n')
         elif cmd == None:
             wstr =  mes_body + '\r\n'
-            file.write(wstr)
+            file.write(wstr + '\r\n')
+            if redirect == 1:
+                doGet(location, None, headtype, filename)
         elif cmd == "-v":
             wstr =  mes_status + '\r\n' + mes_header + '\r\n' + mes_body + '\r\n'
-            file.write(wstr)
+            file.write(wstr + '\r\n')
+            if redirect == 1:
+                doGet(location, cmd, headtype, filename)
         file.close()
     tcp_socket.close()
-
 
 def doPost(type, url, headtype, attach, filename=None):
     if type == '-d':
@@ -103,8 +122,22 @@ def doPost(type, url, headtype, attach, filename=None):
             break
     mes_header = '\n'.join(rec_mes[1:count - 1])
     mes_body = '\n'.join(rec_mes[count:])
+    location = ''
+    if mes_status.__contains__("301") or mes_status.__contains__("302"):
+        redirect = 1
+        for mes in rec_mes:
+            if 'location' in mes.lower():
+                location = mes.split(' ')[1]
+    else:
+        redirect = 0
+    if location.__contains__("http") or location.__contains__("https"):
+        pass
+    elif location != '':
+        location = _url.scheme + "://" + _url.netloc + location
     if filename == None:
         print(mes_body)
+        if redirect == 1:
+            doPost(type, location, headtype, inline, filename)
     else:
         if(filename.__contains__("'")):
             filename = eval(filename)
@@ -112,44 +145,11 @@ def doPost(type, url, headtype, attach, filename=None):
         wstr = mes_body
         file.write(wstr + '\r\n')
         file.close()
+        if redirect == 1:
+            doPost(type, location, headtype, inline, filename)
     tcp_socket.close()
 
-
-def doRedirect(url):
-    _url = urlparse(url)
-    host = _url.hostname
-    port = _url.port
-    if port == None:
-        port = 80
-    urlQuery = _url.query
-    path = _url.path
-    if path == "":
-        path = '/'
-    if urlQuery != "":
-        path += "?" + urlQuery
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.connect((host, port))
-    request_line = 'HEAD ' + path + ' HTTP/1.1\r\n'
-    request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
-    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + 'Content-Type: application/x-www-form-urlencoded; charset=utf-8 \r\n' + '\r\n'
-    msg = bytes(request_data, encoding = "utf8")
-    tcp_socket.send(msg)
-    rec = str(tcp_socket.recv(5000), encoding = "utf-8")
-    rec_mes = rec.splitlines()
-    mes_status = ''
-    location = ''
-    if rec_mes.__len__ != None:
-        mes_status = rec_mes[0]
-    if '302' in mes_status or '301' in mes_status:
-        for mes in rec_mes:
-            if 'Location' in mes:
-                location = mes.split(' ')[1]
-    doGet(location, "-v")
-    tcp_socket.close()
-
-
-# if __name__ == '__main__':
-def main():
+if __name__ == '__main__':
     exit = 0
     while(exit == 0):
         command = input()
@@ -229,9 +229,6 @@ def main():
                 cmd = 'body'
                 doGet(eval(url), cmd, headtype, filename)
                 filename = None
-
-
-
             elif command_arr[1].lower() == 'post':
                 filename = None
                 for posts in command_arr:
@@ -257,21 +254,16 @@ def main():
                         inline = command_arr[index + 1]
                 doPost(type, url, headtype, inline, filename)
                 filename = None
-
-            elif command_arr[1].lower() == 'redirect':
-                for redirects in command_arr:
-                    if '://' in redirects:
-                        url = redirects
-                        if url.__contains__("'"):
-                            url = eval(url)
-                doRedirect(url)
             else:
                 print()
         else:
             print()
 
 # httpc get 'http://httpbin.org/get?course=networking&assignment=1'
-#httpc query 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
-# httpc post -h Content-Type:application/json -d '{"Assignment": 1}' 'http://httpbin.org/post'
 # httpc get -v -h Content-Type:application/json 'http://httpbin.org/get?course=networking&assignment=1'
+# httpc query 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
+# httpc header 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
+# httpc body 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
+# httpc post -h Content-Type:application/json -d '{"Assignment": 1}' 'http://httpbin.org/post'
 # httpc post -h Content-Type:application/json -f 'data.txt' 'http://httpbin.org/post'
+# httpc get -v 'http://httpbin.org/status/302'
