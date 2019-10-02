@@ -7,6 +7,9 @@ GET = "get"
 POST = "post"
 DETAIL = "-v"
 HEAD = "-h"
+QUERY = "query"
+HEADER = "header"
+BODY = "body"
 POST_DATA = "-d"
 POST_FILE = "-f"
 OUTPUT = "-o"
@@ -134,7 +137,7 @@ def output(print_detail, print_in_file, result_head, result_body, file_name):
     print(output_content)
 
     if print_in_file:
-        with open(file_name, 'wb') as f:
+        with open(file_name, 'ab') as f:
             output_content = output_content + "\r\n\r\n"
             f.write(output_content.encode('utf-8'))
 
@@ -204,6 +207,81 @@ def post_operation():
     main()
 
 
+def query_operation():
+    file_name = ""
+    print_in_file = False
+    print_detail = False
+    result_head =  ""
+    result_body = ""
+    for index, element in enumerate(request_list):
+        if "://" in element:
+            host, abs_path, port = deal_url(element)
+            result_body = abs_path
+            url_index = index
+        if element.lower() == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+
+    output(print_detail, print_in_file, result_head, result_body, file_name)
+
+    request_list.clear()
+    main()
+
+
+def body_operation():
+    file_name = ""
+    print_in_file = False
+    print_detail = False
+    result_head = ""
+    result_body = ""
+    key_value = ""
+
+    scheme_version_header = " HTTP/1.0\r\n"
+    user_agent_header = "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n"
+
+    for index, element in enumerate(request_list):
+        if element.lower() == HEAD:
+            key_value = "Content-Type: " + request_list[index+1]
+        if "://" in element:
+            host, abs_path, port = deal_url(element)
+            result_head = abs_path + scheme_version_header
+            result_body = "Host: "+ host + ":" + str(port) + "\r\n" + key_value + "\r\n" + user_agent_header
+            print_detail = True
+            url_index = index
+        if element.lower() == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+
+    output(print_detail, print_in_file, result_head, result_body, file_name)
+
+    request_list.clear()
+    main()
+
+
+def header_operation():
+    file_name = ""
+    print_in_file = False
+    print_detail = False
+    result_head = ""
+    result_body = ""
+    for index, element in enumerate(request_list):
+        if "://" in element:
+            host, abs_path, port = deal_url(element)
+            result_head = "Host: " + host
+            result_body = "Port: " + str(port)
+            print_detail = True
+            url_index = index
+        if element.lower() == OUTPUT:
+            print_in_file = True
+            file_name = request_list[index+1]
+
+    output(print_detail, print_in_file, result_head, result_body, file_name)
+
+    request_list.clear()
+    main()
+
+
+
 def help_operation():
     if len(request_list) == 2:
         print('httpc is a curl-like application but supports HTTP protocol only.\nUsage:\n    httpc command [arguments]\nThe commands are:\n    get executes a HTTP GET request and prints the response.\n    post executes a HTTP POST request and prints the response.\n    help prints this screen.\n\nUse "httpc help [command]" for more information about a command.')
@@ -221,6 +299,12 @@ def choose_operation():
         get_operation()
     elif request_operation.lower() == POST:
         post_operation()
+    elif request_operation.lower() == QUERY:
+        query_operation()
+    elif request_operation.lower() == HEADER:
+        header_operation()
+    elif request_operation.lower() == BODY:
+        body_operation()
     elif request_operation.lower() == HELP:
         help_operation()
     else:
@@ -295,4 +379,4 @@ def main():
     choose_operation()
 
 
-# main()
+main()

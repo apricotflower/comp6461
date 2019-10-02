@@ -266,6 +266,7 @@ def main(raw_input):
         else:
             print()
 
+main("")
 # httpc get 'http://httpbin.org/get?course=networking&assignment=1'
 # httpc get -v -h Content-Type:application/json 'http://httpbin.org/get?course=networking&assignment=1'
 # httpc query 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
