@@ -163,6 +163,7 @@ def get_operation():
 
     decide_redirection(host, result_head, url_index)
 
+    request_list.clear()
     main()
 
 
@@ -197,6 +198,7 @@ def post_operation():
 
     decide_redirection(host, result_head, url_index)
 
+    request_list.clear()
     main()
 
 
@@ -283,7 +285,6 @@ def get_raw_input():
 def main():
     deal_input()
     choose_operation()
-    request_list.clear()
 
 
 # main()
