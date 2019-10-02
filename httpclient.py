@@ -153,8 +153,13 @@ def doPost(type, url, headtype, attach, filename=None):
 def main(raw_input):
     exit = 0
     while(exit == 0):
-        # command = input()
-        command = raw_input
+
+        if raw_input != "":
+            command = raw_input
+            raw_input = ""
+        else:
+            command = input()
+
         if command == 'exit':
             exit = 1
         command_arr = command.split(' ')
