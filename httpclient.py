@@ -148,7 +148,8 @@ def doRedirect(url):
     tcp_socket.close()
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main():
     exit = 0
     while(exit == 0):
         command = input()

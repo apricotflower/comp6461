@@ -254,23 +254,30 @@ def my_split(data):
 
 def deal_input():
     global request_list
-    raw_request = my_split(input().strip().replace("'", ""))
+    global raw
+    raw = input()
+    raw_request = my_split(raw.strip().replace("'", ""))
     # print("request: " + str(raw_request))
     while raw_request == -1:
         raw_request.clear()
-        raw_request = my_split(input().strip().replace("'", ""))
+        raw = input()
+        raw_request = my_split(raw.strip().replace("'", ""))
         # print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
         print("Not start with httpc! Input again!")
         raw_request.clear()
-        raw_request = my_split(input().strip().replace("'", ""))
+        raw = input()
+        raw_request = my_split(raw.strip().replace("'", ""))
     request_list = raw_request.copy()
     raw_request.clear()
 
+
+def get_raw_input():
+    return raw
 
 def main():
     deal_input()
     choose_operation()
 
 
-main()
+# main()
