@@ -149,10 +149,12 @@ def doPost(type, url, headtype, attach, filename=None):
             doPost(type, location, headtype, inline, filename)
     tcp_socket.close()
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main(raw_input):
     exit = 0
     while(exit == 0):
-        command = input()
+        # command = input()
+        command = raw_input
         if command == 'exit':
             exit = 1
         command_arr = command.split(' ')
