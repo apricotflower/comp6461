@@ -65,20 +65,25 @@ def doGet(url, cmd, headtype, filename = None):
         file = open(filename, "a")
         if cmd == 'query':
             wstr =  urlQuery + '\r\n'
+            print(wstr)
             file.write(wstr + '\r\n')
         elif cmd == 'header':
             wstr = request_headers + '\r\n'
+            print(wstr)
             file.write(wstr + '\r\n')
         elif cmd == 'body':
             wstr = request_data + '\r\n'
+            print(wstr)
             file.write(wstr + '\r\n')
         elif cmd == None:
             wstr =  mes_body + '\r\n'
+            print(wstr)
             file.write(wstr + '\r\n')
             if redirect == 1:
                 doGet(location, None, headtype, filename)
         elif cmd == "-v":
             wstr =  mes_status + '\r\n' + mes_header + '\r\n' + mes_body + '\r\n'
+            print(wstr)
             file.write(wstr + '\r\n')
             if redirect == 1:
                 doGet(location, cmd, headtype, filename)
@@ -143,6 +148,7 @@ def doPost(type, url, headtype, attach, filename=None):
             filename = eval(filename)
         file = open(filename, "a")
         wstr = mes_body
+        print(wstr)
         file.write(wstr + '\r\n')
         file.close()
         if redirect == 1:
