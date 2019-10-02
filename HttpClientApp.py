@@ -163,6 +163,8 @@ def get_operation():
 
     decide_redirection(host, result_head, url_index)
 
+    main()
+
 
 def post_operation():
     print_detail = False
@@ -194,6 +196,8 @@ def post_operation():
     output(print_detail, print_in_file, result_head, result_body, file_name)
 
     decide_redirection(host, result_head, url_index)
+
+    main()
 
 
 def help_operation():
@@ -275,9 +279,11 @@ def deal_input():
 def get_raw_input():
     return raw
 
+
 def main():
     deal_input()
     choose_operation()
+    request_list.clear()
 
 
-# main()
+main()
