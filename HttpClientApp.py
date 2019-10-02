@@ -93,7 +93,7 @@ def deal_url(url):
 
     abs_path = path + params + query + fragment
 
-    return host, abs_path, port
+    return host, abs_path, port,query
 
 
 def redirect_analyse_url(host, re_location):
@@ -159,7 +159,7 @@ def get_operation():
             file_name = request_list[index+1]
 
         if "://" in element:
-            host, abs_path, port = deal_url(element)
+            host, abs_path, port, query = deal_url(element)
             url_index = index
 
     result_head, result_body = send_receive_data(host, abs_path, port, GET, key_value, "")
@@ -194,7 +194,7 @@ def post_operation():
             f = open(request_list[index+1], 'r')
             request_data = f.read()
         if "://" in element:
-            host, abs_path, port = deal_url(element)
+            host, abs_path, port, query = deal_url(element)
             url_index = index
 
     result_head, result_body = send_receive_data(host, abs_path, port, POST, key_value, request_data)
@@ -215,8 +215,8 @@ def query_operation():
     result_body = ""
     for index, element in enumerate(request_list):
         if "://" in element:
-            host, abs_path, port = deal_url(element)
-            result_body = abs_path
+            host, abs_path, port, query = deal_url(element)
+            result_body = query.strip("?")
             url_index = index
         if element.lower() == OUTPUT:
             print_in_file = True
@@ -243,7 +243,7 @@ def body_operation():
         if element.lower() == HEAD:
             key_value = "Content-Type: " + request_list[index+1]
         if "://" in element:
-            host, abs_path, port = deal_url(element)
+            host, abs_path, port, query = deal_url(element)
             result_head = abs_path + scheme_version_header
             result_body = "Host: "+ host + ":" + str(port) + "\r\n" + key_value + "\r\n" + user_agent_header
             print_detail = True
@@ -266,7 +266,7 @@ def header_operation():
     result_body = ""
     for index, element in enumerate(request_list):
         if "://" in element:
-            host, abs_path, port = deal_url(element)
+            host, abs_path, port, query = deal_url(element)
             result_head = "Host: " + host
             result_body = "Port: " + str(port)
             print_detail = True
