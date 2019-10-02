@@ -1,5 +1,6 @@
 import socket
 import urllib.parse
+import os
 # import ssl
 
 GET = "get"
@@ -10,6 +11,7 @@ POST_DATA = "-d"
 POST_FILE = "-f"
 OUTPUT = "-o"
 HELP = "help"
+EXIT = "exit"
 
 
 def send_receive_data(host, abs_path, port, operation, request_content_type, request_data):
@@ -262,17 +264,23 @@ def deal_input():
     global request_list
     global raw
     raw = input()
+    if raw == EXIT:
+        os._exit(0)
     raw_request = my_split(raw.strip().replace("'", ""))
     # print("request: " + str(raw_request))
     while raw_request == -1:
         raw_request.clear()
         raw = input()
+        if raw == EXIT:
+            os._exit(0)
         raw_request = my_split(raw.strip().replace("'", ""))
         # print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
         print("Not start with httpc! Input again!")
         raw_request.clear()
         raw = input()
+        if raw == EXIT:
+            os._exit(0)
         raw_request = my_split(raw.strip().replace("'", ""))
     request_list = raw_request.copy()
     raw_request.clear()
