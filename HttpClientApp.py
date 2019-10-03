@@ -1,7 +1,6 @@
 import socket
 import urllib.parse
 import os
-# import ssl
 
 GET = "get"
 POST = "post"
@@ -16,36 +15,46 @@ OUTPUT = "-o"
 HELP = "help"
 EXIT = "exit"
 
+def test():
+    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    my_socket.connect(("www.google.ca", 80))
+    #request = "GET /?q=hello+world HTTP/1.1\r\nHost: www.google.ca:80\r\nConnection: Keep-Alive\r\nContent-Type: application/x-www-form-urlencoded; charset=utf-8 \r\n\r\n"
+    request = "GET /?q=hello+world HTTP/1.0\r\nHost: www.google.ca:80\r\n\r\n"
+    my_socket.send(request.encode('utf-8'))
+    data = my_socket.recv(1024).decode('ISO-8859-1')
+    print(data)
 
-def send_receive_data(host, abs_path, port, operation, request_content_type, request_data):
+def send_receive_data(host, abs_path, port, operation, headers, request_data):
     # print("host: " + host)
     # print("abs_url:" + abs_path)
-    # print("request_content_type: " + request_content_type)
+    # print("headers: " + headers)
     # print("request_data: " + request_data)
     # print("**"*20)
     request = ""
 
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # my_socket.connect((host, 443))
     my_socket.connect((host, port))
-    # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
-    #                            ssl_version = ssl.PROTOCOL_SSLv23)
     scheme_version_header = " HTTP/1.0\r\n"
-    host_header = "Host: " + host + ':' + str(port) + "\r\n"
-    user_agent_header = "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n"
-    # if request_content_type == "":
-    #     request_content_type = "Content-Type: application/x-www-form-urlencoded"
+    if headers != "":
+        headers = headers + "\r\n"
+    if "Host:" not in headers:
+        headers = headers + "Host: " + host + ":" + str(port) + "\r\n"
 
     if operation == GET:
-        # print(abs_path)
-       # request_line = "GET " + abs_path + scheme_version_header + host_header + 'Connection: Keep-Alive\r\n' + request_content_type + '; charset=utf-8 \r\n'
-        request_line = "GET /" + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n"
+        do = "GET "
+        if abs_path == "":
+            do = "GET /"
+        request_line = do + abs_path + scheme_version_header + headers + "\r\n"
         request = request_line + "\r\n"
-        # print(request)
     elif operation == POST:
-        request_content_length = "Content-Length: " + str(len(request_data))
-        request = 'POST /' + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
+        do = "POST "
+        if abs_path == "":
+            do = "POST /"
+        if "Content-Length:" not in headers:
+            headers = headers + "Content-Length: " + str(len(request_data)) + "\r\n"
+        request = do + abs_path + scheme_version_header + headers + "\r\n" + request_data
 
+    # print(request)
     my_socket.send(request.encode('utf-8'))
     # my_socket.send(request.encode('ISO-8859-1'))
     data = ""
@@ -57,7 +66,8 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
         # print(data)
         if not buf_data:
             break
-    # print("data: " + data)
+    # print(data)
+    # data = my_socket.recv(10240).decode('ISO-8859-1')
     # result_head, result_body = "", ""
     # print(len(data.split('\r\n\r\n')))
     # print(data)
@@ -128,7 +138,7 @@ def start_redirect(host, result_head, url_index):
 
     target_url = redirect_analyse_url(host, re_location)
     request_list[url_index] = target_url
-    print("Redirect url to: " + target_url)
+    # print("Redirect url to: " + target_url)
     choose_operation()
 
 
@@ -162,7 +172,7 @@ def get_operation():
         if element.lower() == DETAIL:
             print_detail = True
         if element.lower() == HEAD:
-            key_value = request_list[index+1]
+            key_value = key_value + "\r\n" + request_list[index+1]
         if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
@@ -171,10 +181,11 @@ def get_operation():
             host, abs_path, port, query = deal_url(element)
             url_index = index
 
+    key_value = key_value.lstrip("\r\n")
     result_head, result_body = send_receive_data(host, abs_path, port, GET, key_value, "")
 
-    if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
-        exit()
+    # if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
+    #     exit()
 
     output(print_detail, print_in_file, result_head, result_body, file_name)
 
@@ -196,7 +207,7 @@ def post_operation():
         if element.lower() == DETAIL:
             print_detail = True
         if element.lower() == HEAD:
-            key_value = request_list[index+1]
+            key_value = key_value + "\r\n" + request_list[index + 1]
         if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
@@ -209,10 +220,11 @@ def post_operation():
             host, abs_path, port, query = deal_url(element)
             url_index = index
 
+    key_value = key_value.lstrip("\r\n")
     result_head, result_body = send_receive_data(host, abs_path, port, POST, key_value, request_data)
 
-    if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
-        exit()
+    # if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
+    #     exit()
 
     output(print_detail, print_in_file, result_head, result_body, file_name)
 
@@ -226,13 +238,12 @@ def query_operation():
     file_name = ""
     print_in_file = False
     print_detail = False
-    result_head =  ""
+    result_head = ""
     result_body = ""
     for index, element in enumerate(request_list):
         if "://" in element:
             host, abs_path, port, query = deal_url(element)
             result_body = query.strip("?")
-            url_index = index
         if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
@@ -252,7 +263,6 @@ def body_operation():
     key_value = ""
 
     scheme_version_header = " HTTP/1.0\r\n"
-    user_agent_header = "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n"
 
     for index, element in enumerate(request_list):
         if element.lower() == HEAD:
@@ -260,9 +270,8 @@ def body_operation():
         if "://" in element:
             host, abs_path, port, query = deal_url(element)
             result_head = abs_path + scheme_version_header
-            result_body = "Host: "+ host + ":" + str(port) + "\r\n" + key_value + "\r\n" + user_agent_header
+            result_body = "Host: " + host + ":" + str(port) + "\r\n" + key_value + "\r\n"
             print_detail = True
-            url_index = index
         if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
@@ -285,7 +294,6 @@ def header_operation():
             result_head = "Host: " + host
             result_body = "Port: " + str(port)
             print_detail = True
-            url_index = index
         if element.lower() == OUTPUT:
             print_in_file = True
             file_name = request_list[index+1]
@@ -394,3 +402,4 @@ def main():
 
 
 # main()
+# test()
