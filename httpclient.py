@@ -18,7 +18,14 @@ def doGet(url, cmd, headtype, filename = None):
     tcp_socket.connect((host, port))
     request_line = 'GET ' + path + ' HTTP/1.1\r\n'
     request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
-    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype + '; charset=utf-8 \r\n' + '\r\n'
+    if headtype.__len__() == 0:
+        request_data = request_line + request_headers + '\r\n'
+    else:
+        head = ''
+        for h in headtype:
+            head += h
+        request_data = request_line + request_headers + head + '\r\n'
+        # request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype + '; charset=utf-8 \r\n' + '\r\n'
     msg = bytes(request_data, encoding = "utf8")
     tcp_socket.send(msg)
     rec = str(tcp_socket.recv(5000), encoding= "utf8")
@@ -110,7 +117,11 @@ def doPost(type, url, headtype, attach, filename=None):
     tcp_socket.connect((host, port))
     request_line = 'POST ' + path + ' HTTP/1.1\r\n'
     request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
-    request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype +'; charset=utf-8 \r\n'
+    # request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype +'\r\n'
+    head = ''
+    for h in headtype:
+        head += h
+    request_data = request_line + request_headers + head
     contentLength = 'Content-Length: ' + str(len(inline)) + '\r\n'
     # there is a blank in front of data request is the whole request message of json
     request = request_data + contentLength + '\r\n' + inline
@@ -155,17 +166,10 @@ def doPost(type, url, headtype, attach, filename=None):
             doPost(type, location, headtype, inline, filename)
     tcp_socket.close()
 
-# if __name__ == '__main__':
-def main(raw_input):
+if __name__ == '__main__':
     exit = 0
     while(exit == 0):
-
-        if raw_input != "":
-            command = raw_input
-            raw_input = ""
-        else:
-            command = input()
-
+        command = input()
         if command == 'exit':
             exit = 1
         command_arr = command.split(' ')
@@ -186,7 +190,8 @@ def main(raw_input):
                 cmd = ''
                 filename = None
                 url = ''
-                headtype = "Content-Type: application/x-www-form-urlencoded"
+                headtype = []
+                count = 0
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
@@ -195,7 +200,8 @@ def main(raw_input):
                     elif '.txt' in gets:
                         filename = gets
                     if gets == '-h':
-                        headtype = command_arr[command_arr.index(gets) + 1]
+                        headtype.append(command_arr[count + 1] + '\r\n')
+                    count += 1
                 if '-v' not in cmd:
                     if '-o' in cmd:
                         doGet(eval(url), None, headtype, filename)
@@ -209,7 +215,7 @@ def main(raw_input):
                         filename = None
             elif command_arr[1].lower() == 'query':
                 filename = None
-                headtype = 'random'
+                headtype = []
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
@@ -220,7 +226,7 @@ def main(raw_input):
                 filename = None
             elif command_arr[1].lower() == 'header':
                 filename = None
-                headtype = 'random'
+                headtype = []
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
@@ -231,12 +237,12 @@ def main(raw_input):
                 filename = None
             elif command_arr[1].lower() == 'body':
                 filename = None
-                headtype = "Content-Type: application/x-www-form-urlencoded"
+                headtype = []
                 for gets in command_arr:
                     if '://' in gets:
                         url = gets
                     if gets == '-h':
-                        headtype = command_arr[command_arr.index(gets) + 1]
+                        headtype.append(command_arr[command_arr.index(gets) + 1])
                     elif '.txt' in gets:
                         filename = gets
                 cmd = 'body'
@@ -249,12 +255,12 @@ def main(raw_input):
                         url = posts
                         if url.__contains__("'"):
                             url = eval(url)
-                headtype = ''
+                headtype = []
                 inline = ''
                 type = ''
                 for index, value in enumerate(command_arr):
                     if value == '-h':
-                        headtype = command_arr[index + 1]
+                        headtype.append(command_arr[index + 1] + '\r\n')
                     elif value == '-o':
                         filename = command_arr[index + 1]
                     elif value == '-d' or value == '--d':
@@ -272,9 +278,10 @@ def main(raw_input):
         else:
             print()
 
-# main("")
 # httpc get 'http://httpbin.org/get?course=networking&assignment=1'
 # httpc get -v -h Content-Type:application/json 'http://httpbin.org/get?course=networking&assignment=1'
+# httpc get -v -h Content-Type:application/json -h Accept-Language:en -h Accept-Ranges:bytes 'http://httpbin.org/get?course=networking&assignment=1'
+# httpc post -h Content-Type:application/json -h Accept-Language:en -d '{"Assignment": 1}' 'http://httpbin.org/post'
 # httpc query 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
 # httpc header 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
 # httpc body 'http://httpbin.org/get?course=networking&assignment=1' -o 'hello.txt'
