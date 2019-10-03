@@ -1,2 +1,0 @@
-course=networking&assignment=1
-

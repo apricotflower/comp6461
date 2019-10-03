@@ -31,12 +31,17 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
     # my_socket = ssl.wrap_socket(my_socket, keyfile=None, certfile = None, server_side = False, cert_reqs = ssl.CERT_NONE,
     #                            ssl_version = ssl.PROTOCOL_SSLv23)
     scheme_version_header = " HTTP/1.0\r\n"
-    host_header = "host: " + host + "\r\n"
+    host_header = "Host: " + host + ':' + str(port) + "\r\n"
     user_agent_header = "User-Agent: " + "Concordia-HTTP/1.0" + "\r\n"
+    # if request_content_type == "":
+    #     request_content_type = "Content-Type: application/x-www-form-urlencoded"
 
     if operation == GET:
+        # print(abs_path)
+       # request_line = "GET " + abs_path + scheme_version_header + host_header + 'Connection: Keep-Alive\r\n' + request_content_type + '; charset=utf-8 \r\n'
         request_line = "GET /" + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n"
         request = request_line + "\r\n"
+        # print(request)
     elif operation == POST:
         request_content_length = "Content-Length: " + str(len(request_data))
         request = 'POST /' + abs_path + scheme_version_header + host_header + user_agent_header + request_content_type + "\r\n" + request_content_length + "\r\n\r\n" + request_data
@@ -45,15 +50,18 @@ def send_receive_data(host, abs_path, port, operation, request_content_type, req
     # my_socket.send(request.encode('ISO-8859-1'))
     data = ""
     while True:
-        # buf_data = my_socket.recv(1024).decode('ISO-8859-1')
-        buf_data = my_socket.recv(1024).decode('utf-8')
+        buf_data = my_socket.recv(1024).decode('ISO-8859-1')
+        # buf_data = my_socket.recv(1024).decode('utf-8')
+        # print(buf_data)
         data = data + buf_data
+        # print(data)
         if not buf_data:
             break
     # print("data: " + data)
     # result_head, result_body = "", ""
     # print(len(data.split('\r\n\r\n')))
-    result_head, result_body = data.split('\r\n\r\n')
+    # print(data)
+    result_head, result_body = data.split('\r\n\r\n', 1)
     my_socket.close()
     return result_head, result_body
 
@@ -71,9 +79,9 @@ def deal_url(url):
     path = p_url.path
     # print("k_path: " + path)
 
-    params = p_url.params
-    if params != "":
-        params = ";" + params
+    # params = p_url.params
+    # if params != "":
+    #     params = ";" + params
     # print("k_params: " + params)
 
     query = p_url.query
@@ -81,9 +89,9 @@ def deal_url(url):
         query = "?" + query
     # print("k_query: " + query)
 
-    fragment = p_url.fragment
-    if fragment != "":
-        fragment = "#" + fragment
+    # fragment = p_url.fragment
+    # if fragment != "":
+    #     fragment = "#" + fragment
     # print("k_fragment: " + fragment)
 
     port = p_url.port
@@ -91,7 +99,8 @@ def deal_url(url):
     if port is None:
         port = 80
 
-    abs_path = path + params + query + fragment
+    # abs_path = path + params + query + fragment
+    abs_path = path + query
 
     return host, abs_path, port,query
 
@@ -164,6 +173,9 @@ def get_operation():
 
     result_head, result_body = send_receive_data(host, abs_path, port, GET, key_value, "")
 
+    if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
+        exit()
+
     output(print_detail, print_in_file, result_head, result_body, file_name)
 
     decide_redirection(host, result_head, url_index)
@@ -198,6 +210,9 @@ def post_operation():
             url_index = index
 
     result_head, result_body = send_receive_data(host, abs_path, port, POST, key_value, request_data)
+
+    if "400" in result_head or "401" in result_head or "403" in result_head or "404" in result_head :
+        exit()
 
     output(print_detail, print_in_file, result_head, result_body, file_name)
 
@@ -279,7 +294,6 @@ def header_operation():
 
     request_list.clear()
     main()
-
 
 
 def help_operation():
