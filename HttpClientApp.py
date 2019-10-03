@@ -266,11 +266,11 @@ def body_operation():
 
     for index, element in enumerate(request_list):
         if element.lower() == HEAD:
-            key_value = "Content-Type: " + request_list[index+1]
+            key_value = key_value + "\r\n" + request_list[index+1]
         if "://" in element:
             host, abs_path, port, query = deal_url(element)
             result_head = abs_path + scheme_version_header
-            result_body = "Host: " + host + ":" + str(port) + "\r\n" + key_value + "\r\n"
+            result_body = "Host: " + host + ":" + str(port) + "\r\n" + key_value.lstrip("\r\n") + "\r\n"
             print_detail = True
         if element.lower() == OUTPUT:
             print_in_file = True
