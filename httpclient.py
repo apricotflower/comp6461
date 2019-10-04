@@ -166,10 +166,18 @@ def doPost(type, url, headtype, attach, filename=None):
             doPost(type, location, headtype, inline, filename)
     tcp_socket.close()
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main(raw_input):
     exit = 0
-    while(exit == 0):
-        command = input()
+    while (exit == 0):
+        # command = input()
+        command = raw_input
+
+        if raw_input != "":
+            command = raw_input
+            raw_input = ""
+        else:
+            command = input()
         if command == 'exit':
             exit = 1
         command_arr = command.split(' ')
@@ -278,6 +286,7 @@ if __name__ == '__main__':
         else:
             print()
 
+main("")
 # httpc get 'http://httpbin.org/get?course=networking&assignment=1'
 # httpc get -v -h Content-Type:application/json 'http://httpbin.org/get?course=networking&assignment=1'
 # httpc get -v -h Content-Type:application/json -h Accept-Language:en -h Accept-Ranges:bytes 'http://httpbin.org/get?course=networking&assignment=1'
