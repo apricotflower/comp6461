@@ -15,15 +15,6 @@ OUTPUT = "-o"
 HELP = "help"
 EXIT = "exit"
 
-def test():
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect(("www.google.ca", 80))
-    #request = "GET /?q=hello+world HTTP/1.1\r\nHost: www.google.ca:80\r\nConnection: Keep-Alive\r\nContent-Type: application/x-www-form-urlencoded; charset=utf-8 \r\n\r\n"
-    request = "GET /?q=hello+world HTTP/1.0\r\nHost: www.google.ca:80\r\n\r\n"
-    my_socket.send(request.encode('utf-8'))
-    data = my_socket.recv(1024).decode('ISO-8859-1')
-    print(data)
-
 def send_receive_data(host, abs_path, port, operation, headers, request_data):
     # print("host: " + host)
     # print("abs_url:" + abs_path)
@@ -61,16 +52,9 @@ def send_receive_data(host, abs_path, port, operation, headers, request_data):
     while True:
         buf_data = my_socket.recv(1024).decode('ISO-8859-1')
         # buf_data = my_socket.recv(1024).decode('utf-8')
-        # print(buf_data)
         data = data + buf_data
-        # print(data)
         if not buf_data:
             break
-    # print(data)
-    # data = my_socket.recv(10240).decode('ISO-8859-1')
-    # result_head, result_body = "", ""
-    # print(len(data.split('\r\n\r\n')))
-    # print(data)
     result_head, result_body = data.split('\r\n\r\n', 1)
     my_socket.close()
     return result_head, result_body
@@ -81,35 +65,20 @@ def deal_url(url):
 
     global p_scheme
     p_scheme = p_url.scheme
-    # print("k_schedule: " + p_scheme)
 
     host = p_url.netloc
-    # print("k_host: " + host)
 
     path = p_url.path
-    # print("k_path: " + path)
-
-    # params = p_url.params
-    # if params != "":
-    #     params = ";" + params
-    # print("k_params: " + params)
 
     query = p_url.query
     if query != "":
         query = "?" + query
-    # print("k_query: " + query)
-
-    # fragment = p_url.fragment
-    # if fragment != "":
-    #     fragment = "#" + fragment
-    # print("k_fragment: " + fragment)
 
     port = p_url.port
-    # print("k_port: " + str(port))
+
     if port is None:
         port = 80
 
-    # abs_path = path + params + query + fragment
     abs_path = path + query
 
     return host, abs_path, port,query
@@ -126,7 +95,7 @@ def redirect_analyse_url(host, re_location):
 def start_redirect(host, result_head, url_index):
     re_location = ""
     result_head_list = result_head.split("\r\n")
-    # print(result_head_list)
+
     for line in result_head_list:
         if "location:" in line.lower():
             re_location = line.split(" ")[1].strip()
@@ -373,14 +342,12 @@ def deal_input():
     if raw == EXIT:
         os._exit(0)
     raw_request = my_split(raw.strip().replace("'", ""))
-    # print("request: " + str(raw_request))
     while raw_request == -1:
         raw_request.clear()
         raw = input()
         if raw == EXIT:
             os._exit(0)
         raw_request = my_split(raw.strip().replace("'", ""))
-        # print("request: " + str(raw_request))
     while raw_request[0] != "httpc":
         print("Not start with httpc! Input again!")
         raw_request.clear()
@@ -402,4 +369,4 @@ def main():
 
 
 # main()
-# test()
+
