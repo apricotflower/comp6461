@@ -97,7 +97,7 @@ def doGet(url, cmd, headtype, filename = None):
         file.close()
     tcp_socket.close()
 
-def doPost(type, url, headtype, attach, filename=None):
+def doPost(type, url, headtype, attach, filename=None,detail=None):
     if type == '-d':
         inline = attach
     elif type == '-f':
@@ -151,14 +151,20 @@ def doPost(type, url, headtype, attach, filename=None):
     elif location != '':
         location = _url.scheme + "://" + _url.netloc + location
     if filename == None:
-        print(mes_body)
+        if detail == None:
+            print(mes_body)
+        else:
+            print(mes_status + '\r\n'+ mes_header + '\r\n' + mes_body + '\r\n')
         if redirect == 1:
             doPost(type, location, headtype, inline, filename)
     else:
         if(filename.__contains__("'")):
             filename = eval(filename)
         file = open(filename, "a")
-        wstr = mes_body
+        if detail == None:
+            wstr = mes_body
+        else:
+            wstr = mes_status + '\r\n'+ mes_header + '\r\n' + mes_body + '\r\n'
         print(wstr)
         file.write(wstr + '\r\n')
         file.close()
@@ -279,7 +285,10 @@ def main(raw_input):
                     elif value == '-f' or value == '--f':
                         type = '-f'
                         inline = command_arr[index + 1]
-                doPost(type, url, headtype, inline, filename)
+                    elif value == '-v':
+                        detail = 1
+                doPost(type, url, headtype, inline, filename, detail)
+                detail = None
                 filename = None
             else:
                 print()
@@ -297,3 +306,4 @@ def main(raw_input):
 # httpc post -h Content-Type:application/json -d '{"Assignment": 1}' 'http://httpbin.org/post'
 # httpc post -h Content-Type:application/json -f 'data.txt' 'http://httpbin.org/post'
 # httpc get -v 'http://httpbin.org/status/302'
+# httpc post -h Content-Type:application/json -d '{"123": 123}' 'http://http://localhost/HW5_ajax/Login.php'
