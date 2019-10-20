@@ -259,5 +259,7 @@ if __name__ == '__main__':
 # httpc get -v -h Content-Type:application/json 'http://localhost:8080'
 # httpc get -v -h Content-Type:text/xml 'http://localhost:8080'
 # httpc get -v -h Content-Type:text/html 'http://localhost:8080'
-# httpc post -v -d 'This is a modification' 'http://localhost:8080/a.txt'
+# httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/a.txt'
+# httpc post -v -d 'This_is_a_modification' -h overwrite=true 'http://localhost:8080/a.txt'
+# httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/a.txt&overwrite=true'
 # httpc post -v -f 'data.txt' 'http://localhost:8080/c.txt'
