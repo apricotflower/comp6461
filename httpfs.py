@@ -54,14 +54,20 @@ def handle_get(request_arr, folder_path):
     print(request_arr)
     path = request_arr[1]
     # default text/plain
-    header_type = 'text/plain'
+    header_type = ''
     for s in request_arr:
         if s.__contains__('localhost'):
             if s.__contains__('Content-Type'):
                 sAll = s.split("\r\n")
                 for type in sAll:
                     if type.__contains__('Content-Type'):
-                        header_type = type[type.index(":") + 1:]
+                        header_type += type[type.index(":") + 1:] + ' '
+            else:
+                header_type = 'text/plain'
+    download = 0
+    for sm in request_arr:
+        if sm.__contains__('Content-Disposition'):
+            download = 1
     if os.path.isdir(folder_path + path):
         files = os.listdir(folder_path + path)
         body = ' '.join(files)
@@ -78,6 +84,18 @@ def handle_get(request_arr, folder_path):
             body += s
         cl = body.__len__()
         response = 'HTTP/1.0 200 OK\r\n' + 'Content-Length: ' + str(cl) + '\r\n\r\n' + body
+        if download == 1:
+            filepath = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + os.path.sep + ".")
+            filepath += '/download' + path
+            try:
+                print(body)
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                f = open(filepath, mode='a')
+                f.write(body)
+                f.close()
+            except:
+                print("File I/O errors")
     else:
         response = 'HTTP/1.0 404 NOT FOUND\r\n\r\n' + path + ' is not exist!'
     return response
@@ -93,6 +111,19 @@ def listdir_nohidden(body):
 def body_format(body, header_type, root_path):
     print(root_path)
     print(body)
+    response = ''
+    header = header_type.split()
+    if header.__len__() > 1:
+        for h in header:
+            if h != header[header.__len__() - 1]:
+                response += format_select(body, h, root_path) + '\r\n\r\n'
+            else:
+                response += format_select(body, h, root_path) + '\r\n'
+    else:
+        response = format_select(body, header[0], root_path)
+    return response
+
+def format_select(body, header_type, root_path):
     elements = body.split(" ")
     if elements.__contains__(''):
         elements.remove('')
@@ -113,6 +144,11 @@ def body_format(body, header_type, root_path):
                     response += '  ' + element_format(e, 'json', root_path) + '\r\n }\r\n}'
                 else:
                     response += '  ' + element_format(e, 'json', root_path) + ',\r\n'
+        jsonfile = ''
+        for file in elements:
+            if file.endswith(".json"):
+                jsonfile += file + ' '
+        response += '\r\n\r\n' + jsonfile + '\r\n'
         return response
     elif header_type.__eq__("text/xml"):
         print(header_type)
@@ -131,24 +167,34 @@ def body_format(body, header_type, root_path):
                     response += '  ' + element_format(e, 'xml', root_path) + '\r\n</DirectoryInfo>'
                 else:
                     response += '  ' + element_format(e, 'xml', root_path) + '\r\n'
+        xmlfile = ''
+        for file in elements:
+            if file.endswith(".xml"):
+                xmlfile += file + ' '
+        response += '\r\n\r\n' + xmlfile + '\r\n'
         return response
     elif header_type.__eq__("text/html"):
         print(header_type)
         response = '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">\r\n'
         if len(elements) == 0:
-            response += '<html>\r\n<head>\r\n   <title>200 OK</title>\r\n</head>\r\n<body>\r\n\r\n</body>\r\n</html>'
+            response += '<html>\r\n<head>\r\n   <title>DirectoryInfo</title>\r\n</head>\r\n<body>\r\n\r\n</body>\r\n</html>'
             return response
         for e in elements:
             if len(elements) == 1:
-                response += '<html>\r\n<head>\r\n   <title>200 OK</title>\r\n</head>\r\n<body>\r\n   ' + element_format(e, 'html', root_path) + '\r\n</body>\r\n</html>'
+                response += '<html>\r\n<head>\r\n   <title>DirectoryInfo</title>\r\n</head>\r\n<body>\r\n   ' + element_format(e, 'html', root_path) + '\r\n</body>\r\n</html>'
                 return response
             else:
                 if elements.index(e) == 0:
-                    response += '<html>\r\n<head>\r\n   <title>200 OK</title>\r\n</head>\r\n<body>\r\n   ' + element_format(e, 'html', root_path) + '\r\n\r\n'
+                    response += '<html>\r\n<head>\r\n   <title>DirectoryInfo</title>\r\n</head>\r\n<body>\r\n   ' + element_format(e, 'html', root_path) + '\r\n\r\n'
                 elif elements.index(e) == len(elements) - 1:
                     response += '   ' + element_format(e, 'html', root_path) + '\r\n</body>\r\n</html>'
                 else:
                     response += '   ' + element_format(e, 'html', root_path) + '\r\n\r\n'
+        htmlfile = ''
+        for file in elements:
+            if file.endswith(".html"):
+                htmlfile += file + ' '
+        response += '\r\n\r\n' + htmlfile + '\r\n'
         return response
     elif header_type.__eq__("text/plain"):
         print(header_type)
