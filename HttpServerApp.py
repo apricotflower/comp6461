@@ -2,6 +2,7 @@ import socket
 import argparse
 import os
 import mimetypes
+import threading
 
 GET = "get"
 POST = "post"
@@ -28,7 +29,7 @@ def find_accept_key():
     return accept_key
 
 
-def get_operation(path):
+def get_operation(path, conn):
     head = request[0].split()[2]
     body = ""
 
@@ -80,10 +81,14 @@ def get_operation(path):
                 print("folder in the path is not exit, return HTTP ERROR 404")
 
     head = head + add_headers(GET)
-    return head, body
+
+    response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
+    conn.sendall(response.encode('utf-8'))
+    conn.close()
+    # return head, body
 
 
-def post_operation(path):
+def post_operation(path, conn):
     head = request[0].split()[2]
     body = ""
     if path != "/":
@@ -119,7 +124,11 @@ def post_operation(path):
         head = head + " 404" + "\r\n"
 
     head = head + temp_head
-    return head, body
+
+    response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
+    conn.sendall(response.encode('utf-8'))
+    conn.close()
+    # return head, body
 
 
 def run_server():
@@ -146,13 +155,13 @@ def run_server():
             print("request_path: " + request_path)
             print("method: " + method)
         if method.lower() == GET:
-            head, body = get_operation(request_path)
+            threading.Thread(target=get_operation,args=(request_path ,conn)).start()
         elif method.lower() == POST:
-            head, body = post_operation(request_path)
+            threading.Thread(target=post_operation,args=(request_path, conn)).start()
 
-        response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
-        conn.sendall(response.encode('utf-8'))
-        conn.close()
+        # response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
+        # conn.sendall(response.encode('utf-8'))
+        # conn.close()
 
 
 if __name__ == '__main__':
