@@ -7,16 +7,18 @@ import threading
 GET = "get"
 POST = "post"
 
+threadLock = threading.Lock()
+
 
 def add_headers(operation):
     headers = ""
     if operation == GET:
         for header in request[1:]:
-            headers = headers + "\r\n" + str(header)
+            headers = headers + "\r\n" + str(header.strip("\r\n"))
     elif operation == POST:
         for header in request[1:-1]:
-            headers = headers + "\r\n" + str(header)
-    return headers
+            headers = headers + "\r\n" + str(header.strip("\r\n"))
+    return headers.lstrip("\r\n")
 
 
 def find_accept_key():
@@ -30,6 +32,7 @@ def find_accept_key():
 
 
 def get_operation(path, conn):
+    threadLock.acquire()
     head = request[0].split()[2]
     body = ""
 
@@ -85,10 +88,12 @@ def get_operation(path, conn):
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
     conn.sendall(response.encode('utf-8'))
     conn.close()
+    threadLock.release()
     # return head, body
 
 
 def post_operation(path, conn):
+    threadLock.acquire()
     head = request[0].split()[2]
     body = ""
     if path != "/":
@@ -128,14 +133,16 @@ def post_operation(path, conn):
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
     conn.sendall(response.encode('utf-8'))
     conn.close()
+    threadLock.release()
     # return head, body
 
 
 def run_server():
+    threads = []
     global request
     host = "localhost"
-    if args.verbose:
-        print("These are debugging messages.")
+    # if args.verbose:
+    #     print("These are debugging messages.")
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind((host, args.port))
     listener.listen(10)
@@ -149,15 +156,21 @@ def run_server():
         line_1 = request[0].split()
         method = line_1[0]
         request_path = line_1[1]
-        head = "head"
-        body = "body"
         if args.verbose:
             print("request_path: " + request_path)
             print("method: " + method)
         if method.lower() == GET:
-            threading.Thread(target=get_operation,args=(request_path ,conn)).start()
+            thread = threading.Thread(target=get_operation, args=(request_path, conn))
         elif method.lower() == POST:
-            threading.Thread(target=post_operation,args=(request_path, conn)).start()
+            thread = threading.Thread(target=post_operation, args=(request_path, conn))
+
+        thread.start()
+        threads.append(thread)
+
+        for t in threads:
+            t.join()
+        if args.verbose:
+            print("All servers finish!")
 
         # response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
         # conn.sendall(response.encode('utf-8'))
