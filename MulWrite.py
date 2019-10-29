@@ -35,5 +35,5 @@ if __name__ == '__main__':
     threads.append(thread_5)
 
     for t in threads:
-        t.join()
+        t.join(2)
     print("All write clients finish!")
