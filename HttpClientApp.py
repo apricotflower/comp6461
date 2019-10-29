@@ -24,12 +24,16 @@ def send_receive_data(host, abs_path, port, operation, headers, request_data):
     request = ""
 
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    my_socket.connect((host, port))
+    # print(host)
+    # print(port)
+    # print(host.split(":")[0])
+    my_socket.connect((host.rsplit(":")[0], port))
     scheme_version_header = " HTTP/1.0\r\n"
     if headers != "":
         headers = headers + "\r\n"
     if "Host:" not in headers:
-        headers = headers + "Host: " + host + ":" + str(port) + "\r\n"
+        headers = headers + "Host: " + host + "\r\n"
+        # headers = headers + "Host: " + host + ":" + str(port) + "\r\n"
 
     if operation == GET:
         do = "GET "
@@ -75,11 +79,15 @@ def deal_url(url):
         query = "?" + query
 
     port = p_url.port
-
+    # print(port)
+    #
+    # print(host)
     if port is None:
         port = 80
+        host = host + ":" + str(port)
 
     abs_path = path + query
+    # print(host)
 
     return host, abs_path, port,query
 
@@ -368,5 +376,6 @@ def main():
     choose_operation()
 
 
-# main()
+if __name__ == '__main__':
+    main()
 
