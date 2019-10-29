@@ -36,41 +36,33 @@ def get_operation(path, conn):
     threadLock.acquire()
     head = request[0].split()[2]
     body = ""
+    r_path = args.directory.rstrip("/") + path
 
-    if path != "/":
+    if os.path.isfile(r_path):
         request_file = path.rsplit("/", 1)[-1]
 
         if args.verbose:
             print("Request ask exact file, start printing detail in file " + request_file)
 
-        file_exit = False
-        file_path = args.directory + path.rsplit("/", 1)[0].lstrip("/")
-        file_path = file_path.rstrip("/") + "/"
-        if os.path.exists(file_path):
-            for file in os.listdir(file_path):
-                if str(request_file) == str(file):
-                    if args.verbose:
-                        print("Found " + str(file))
-                    fo = open(file_path + str(file))
-                    lines = fo.read() + "\r\n"
-                    head = head + " 200 OK"+"\r\n"
-                    body = body + lines
-                    file_exit = True
-                    if args.verbose:
-                        print("200 OK")
-                        print(lines)
-        if not file_exit:
-            head = head + " 404" + "\r\n"
             if args.verbose:
-                print("Do not find target file,return HTTP ERROR 404")
+                print("Found " + str(r_path))
+            fo = open(r_path)
+            lines = fo.read() + "\r\n"
+            head = head + " 200 OK"+"\r\n"
+            body = body + lines
+            file_exit = True
+            if args.verbose:
+                print("200 OK")
+                print(lines)
+
     else:
         if args.verbose:
             print("Request do not ask exact file, start printing a list of the current files……")
             print("Returning files name……")
         accept_key = find_accept_key()
-        if os.path.exists(args.directory.rstrip("/") + "/"):
+        if os.path.exists(r_path):
             head = head + " 200 OK" + "\r\n"
-            for file in os.listdir(args.directory.rstrip("/") + "/"):
+            for file in os.listdir(r_path):
                 if not os.path.isdir(file):
                     file_type = mimetypes.MimeTypes().guess_type(file)[0]
                     if args.verbose:
@@ -82,7 +74,7 @@ def get_operation(path, conn):
         else:
             head = head + " 404" + "\r\n"
             if args.verbose:
-                print("folder in the path is not exit, return HTTP ERROR 404")
+                print("path is not exit, return HTTP ERROR 404")
 
     head = head + add_headers(GET)
 
@@ -97,13 +89,13 @@ def post_operation(path, conn):
     threadLock.acquire()
     head = request[0].split()[2]
     body = ""
+    temp_head = add_headers(POST)
     if path != "/":
         request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
             print("Target file is " + request_file)
         file_path = args.directory + path.rsplit("/", 1)[0].lstrip("/")
         file_path = file_path.rstrip("/") + "/"
-        temp_head = add_headers(POST)
         if "overwrite=true" in temp_head.lower():
             if args.verbose:
                 print("overwrite=true in the header, data can be written……")
@@ -161,17 +153,20 @@ def run_server():
             print("request_path: " + request_path)
             print("method: " + method)
         if method.lower() == GET:
+            # get_operation(request_path, conn)
             thread = threading.Thread(target=get_operation, args=(request_path, conn))
         elif method.lower() == POST:
+            # post_operation(request_path, conn)
             thread = threading.Thread(target=post_operation, args=(request_path, conn))
 
         thread.start()
         threads.append(thread)
+        thread.join()
 
-        for t in threads:
-            t.join()
-        if args.verbose:
-            print("All servers finish!")
+    # for t in threads:
+    #     t.join()
+    # if args.verbose:
+    #     print("All servers finish!")
 
         # response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
         # conn.sendall(response.encode('utf-8'))
