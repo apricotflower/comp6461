@@ -230,8 +230,10 @@ def element_format(e, type, root_path):
 def handle_post(request_arr, folder_path):
     print(request_arr)
     path = request_arr[1]
-    # default overwrite=false
-    overwrite = 'false'
+    if path.__contains__("ReadOnly"):
+        response = 'HTTP/1.0 403 Forbidden\r\n' + 'This folder read only can not write.' + '\r\n\r\n'
+        return response
+    overwrite = ''
     if path.__contains__('&'):
         path = path[:path.index('&')]
     for s in request_arr:
@@ -239,6 +241,8 @@ def handle_post(request_arr, folder_path):
             overwrite_text = s[s.index('=') + 1:]
             if overwrite_text.__contains__('true'):
                 overwrite = 'true'
+            elif overwrite_text.__contains__('false'):
+                overwrite = 'false'
     print(overwrite)
     file_path = folder_path + path
     print(file_path)
@@ -256,6 +260,14 @@ def handle_post(request_arr, folder_path):
             except:
                 print("Errors in the file operation.")
             body =file_path + '\r\nYou successfully overwrite it.\r\n' + content
+        if overwrite == 'false':
+            try:
+                f = open(file_path,"a+")
+                f.write("\n" + content)
+                f.close()
+            except:
+                print("Errors in the file operation.")
+            body =file_path + '\r\nYou successfully append it.\r\n' + content
         else:
             body = 'This file is already exist.\r\nIf you want to overwrite it.\r\nYou can add overwrite=true option.'
     else:
@@ -309,3 +321,6 @@ if __name__ == '__main__':
 # httpc post -v -d 'This_is_a_modification' -h overwrite=true 'http://localhost:8080/a.txt'
 # httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/a.txt&overwrite=true'
 # httpc post -v -f 'data.txt' 'http://localhost:8080/c.txt'
+
+# httpc get -v 'http://localhost:8080/ReadOnly/a.txt'
+# httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/ReadOnly/a.txt'
