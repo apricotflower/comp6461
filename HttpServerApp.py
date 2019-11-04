@@ -32,6 +32,32 @@ def find_accept_key():
     return accept_key
 
 
+def find_disposition_name():
+    disposition_filename = ""
+    have_attachment = False
+    for line in request:
+        if "content-disposition" in line.lower():
+            if args.verbose:
+                print("content-disposition in headers!")
+            if "inline" in line.lower():
+                continue
+            elif "attachment" in line.lower():
+                if args.verbose:
+                    print("Attachment in parameters!")
+                parameters = line.rsplit(":")[1].split(";")
+                for para in parameters:
+                    if "filename" in para:
+                        disposition_filename = para.split("=")[1]
+                        if args.verbose:
+                            print("filename is " + disposition_filename)
+                have_attachment = True
+            elif "form-data" in line.lower():
+                continue
+    if args.verbose:
+        print("Content-Disposition: " + str(disposition_filename))
+    return have_attachment, disposition_filename
+
+
 def get_operation(path, conn):
     threadLock.acquire()
     head = request[0].split()[2]
@@ -39,21 +65,25 @@ def get_operation(path, conn):
     r_path = args.directory.rstrip("/") + path
 
     if os.path.isfile(r_path):
-        request_file = path.rsplit("/", 1)[-1]
-
+        # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
-            print("Request ask exact file, start printing detail in file " + request_file)
-
+            # print("Request ask exact file, start printing detail in file " + request_file)
+            print("Found " + str(r_path))
+        fo = open(r_path)
+        lines = fo.read() + "\r\n"
+        head = head + " 200 OK"+"\r\n"
+        body = body + lines
+        fo.close()
+        if args.verbose:
+            print("200 OK")
+            print(lines)
+        have_attachment, disposition_filename = find_disposition_name()
+        if have_attachment:
             if args.verbose:
-                print("Found " + str(r_path))
-            fo = open(r_path)
-            lines = fo.read() + "\r\n"
-            head = head + " 200 OK"+"\r\n"
-            body = body + lines
-            file_exit = True
-            if args.verbose:
-                print("200 OK")
-                print(lines)
+                print("Downloading in " + disposition_filename)
+            wfo = open(args.directory.rstrip("/") + "/" + disposition_filename, "w+")
+            wfo.write(lines)
+            wfo.close()
 
     else:
         if args.verbose:
@@ -90,34 +120,42 @@ def post_operation(path, conn):
     head = request[0].split()[2]
     body = ""
     temp_head = add_headers(POST)
-    if path != "/":
-        request_file = path.rsplit("/", 1)[-1]
+    r_path = args.directory.rstrip("/") + path
+    if args.verbose:
+        print("Path is " + r_path)
+    if path[-1] != "/":
+        # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
-            print("Target file is " + request_file)
-        file_path = args.directory + path.rsplit("/", 1)[0].lstrip("/")
-        file_path = file_path.rstrip("/") + "/"
+            print("Target file is " + r_path)
+        # file_path = args.directory + path.rsplit("/", 1)[0].lstrip("/")
+        # file_path = file_path.rstrip("/") + "/"
         if "overwrite=true" in temp_head.lower():
             if args.verbose:
-                print("overwrite=true in the header, data can be written……")
+                print("overwrite=true in the header, data can be overwritten……")
             head = head + " 200 OK" + "\r\n"
-            fo = open(file_path + request_file, "a+")
+            fo = open(r_path, "w+")
             fo.write(request[-1]+"\n")
             body = request[-1]
+            fo.close()
         else:
             if args.verbose:
-                print("overwrite=true not the header, data only can be written when no target file in the folder……")
-            file = file_path + request_file
-            if not os.path.isfile(file):
-                if args.verbose:
-                    print("No target file in the folder, start writing……")
-                head = head + " 200 OK" + "\r\n"
-                fo = open(file_path + request_file, "a+")
-                fo.write(request[-1] + "\n")
-                body = request[-1]
-            else:
-                head = head + " 404" + "\r\n"
-                if args.verbose:
-                    print("Target file exist! Can not write the file!")
+                print("overwrite=true not the header, data can not be overwriten……")
+            head = head + " 200 OK" + "\r\n"
+            fo = open(r_path, "a+")
+            fo.write(request[-1] + "\n")
+            body = request[-1]
+            fo.close()
+
+        have_attachment, disposition_filename = find_disposition_name()
+        if have_attachment:
+            if args.verbose:
+                print("Downloading in " + disposition_filename)
+            fo2 = open(r_path)
+            lines = fo2.read() + "\r\n"
+            wfo = open(args.directory.rstrip("/") + "/" + disposition_filename, "w+")
+            wfo.write(lines)
+            fo2.close()
+            wfo.close()
     else:
         head = head + " 404" + "\r\n"
 
@@ -134,8 +172,6 @@ def run_server():
     threads = []
     global request
     host = "localhost"
-    # if args.verbose:
-    #     print("These are debugging messages.")
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     listener.bind((host, args.port))
     listener.listen(10)
