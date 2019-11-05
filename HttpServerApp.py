@@ -54,8 +54,6 @@ def find_disposition_name():
                 have_attachment = True
             elif "form-data" in line.lower():
                 continue
-    if args.verbose:
-        print("Content-Disposition: " + str(disposition_filename))
     return have_attachment, disposition_filename
 
 
@@ -68,8 +66,7 @@ def get_operation(path, conn):
     if os.path.isfile(r_path):
         # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
-            # print("Request ask exact file, start printing detail in file " + request_file)
-            print("Found " + str(r_path))
+            print("It is a file in the target! Found " + str(r_path))
         fo = open(r_path)
         lines = fo.read() + "\r\n"
         head = head + " 200 OK"+"\r\n"
@@ -88,17 +85,18 @@ def get_operation(path, conn):
 
     else:
         if args.verbose:
-            print("Request do not ask exact file, start printing a list of the current files……")
-            print("Returning files name……")
+            print("Request do not ask exact file, try to start printing a list of the current files……")
         accept_key = find_accept_key()
         if os.path.exists(r_path):
+            if args.verbose:
+                print("Path is exited! Returning files name……")
             head = head + " 200 OK" + "\r\n"
             if accept_key:
                 for file in os.listdir(r_path):
                     if not os.path.isdir(file):
                         file_type = mimetypes.MimeTypes().guess_type(file)[0]
                         if args.verbose:
-                            print("file: "+str(file) + " file_type: "+ str(file_type))
+                            print("file: "+str(file) + " file_type: " + str(file_type))
                         if str(file_type) in str(accept_key):
                             body = body + '\r\n ' + file
             else:
@@ -108,9 +106,9 @@ def get_operation(path, conn):
             if args.verbose:
                 print("File list: " + str(body))
         else:
-            head = head + " 404" + "\r\n"
+            head = head + " 404 not exit" + "\r\n"
             if args.verbose:
-                print("path is not exit, return HTTP ERROR 404")
+                print("path is not exited, return HTTP ERROR 404")
 
     head = head + add_headers(GET)
 
@@ -118,7 +116,6 @@ def get_operation(path, conn):
     conn.sendall(response.encode('utf-8'))
     conn.close()
     threadLock.release()
-    # return head, body
 
 
 def post_operation(path, conn):
@@ -129,12 +126,10 @@ def post_operation(path, conn):
     r_path = args.directory.rstrip("/") + path
     if args.verbose:
         print("Path is " + r_path)
-    if path[-1] != "/" and READ_ONLY_FOLDER not in r_path:
+    if path[-1] != "/" and READ_ONLY_FOLDER not in r_path and os.path.isdir(r_path.rsplit("/", 1)[0] + "/"):
         # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
             print("Target file is " + r_path)
-        # file_path = args.directory + path.rsplit("/", 1)[0].lstrip("/")
-        # file_path = file_path.rstrip("/") + "/"
         if "overwrite=true" in temp_head.lower():
             if args.verbose:
                 print("overwrite=true in the header, data can be overwritten……")
@@ -144,13 +139,19 @@ def post_operation(path, conn):
             body = request[-1]
             fo.close()
         else:
+            head = head + " 200 OK" + "\r\n"
             if args.verbose:
                 print("overwrite=true not the header, data can not be overwriten……")
-                if not os.path.isfile(r_path):
+            if not os.path.isfile(r_path):
+                fo = open(r_path, "a+")
+                if args.verbose:
                     print("The file is not exit! Creating a new file……")
-            head = head + " 200 OK" + "\r\n"
-            fo = open(r_path, "a+")
-            fo.write(request[-1] + "\n")
+                fo.write(request[-1])
+            else:
+                fo = open(r_path, "a+")
+                if args.verbose:
+                    print("The file exit! Appending the data……")
+                fo.write("\n" + request[-1])
             body = request[-1]
             fo.close()
 
@@ -166,7 +167,17 @@ def post_operation(path, conn):
             wfo.close()
     else:
         if READ_ONLY_FOLDER in r_path:
+            if args.verbose:
+                print("Requesting for a read only file. Forbidden!")
             head = head + " 403 Forbidden" + "\r\n"
+        elif not os.path.isdir(r_path.rsplit("/", 1)[0] + "/"):
+            if args.verbose:
+                print("Path not exit")
+            head = head + " 404 not exit" + "\r\n"
+        elif path[-1] == "/":
+            if args.verbose:
+                print("Do not have target file in the path!")
+            head = head + " 404 not exit" + "\r\n"
         else:
             head = head + " 404 not exit" + "\r\n"
 
@@ -176,7 +187,6 @@ def post_operation(path, conn):
     conn.sendall(response.encode('utf-8'))
     conn.close()
     threadLock.release()
-    # return head, body
 
 
 def run_server():
@@ -190,6 +200,7 @@ def run_server():
         conn, addr = listener.accept()
         request = conn.recv(1024).decode("utf-8")
         if args.verbose:
+            print("**"*40)
             print("Client from addr:" + str(addr))
             print("Receive request: " + str(request))
         request = request.split('\r\n')
@@ -200,24 +211,13 @@ def run_server():
             print("request_path: " + request_path)
             print("method: " + method)
         if method.lower() == GET:
-            # get_operation(request_path, conn)
             thread = threading.Thread(target=get_operation, args=(request_path, conn))
         elif method.lower() == POST:
-            # post_operation(request_path, conn)
             thread = threading.Thread(target=post_operation, args=(request_path, conn))
 
         thread.start()
         threads.append(thread)
         thread.join()
-
-    # for t in threads:
-    #     t.join()
-    # if args.verbose:
-    #     print("All servers finish!")
-
-        # response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
-        # conn.sendall(response.encode('utf-8'))
-        # conn.close()
 
 
 if __name__ == '__main__':
