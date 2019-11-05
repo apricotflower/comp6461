@@ -7,6 +7,7 @@ import threading
 
 GET = "get"
 POST = "post"
+READ_ONLY_FOLDER = "ReadOnly"
 
 threadLock = threading.Lock()
 
@@ -92,12 +93,17 @@ def get_operation(path, conn):
         accept_key = find_accept_key()
         if os.path.exists(r_path):
             head = head + " 200 OK" + "\r\n"
-            for file in os.listdir(r_path):
-                if not os.path.isdir(file):
-                    file_type = mimetypes.MimeTypes().guess_type(file)[0]
-                    if args.verbose:
-                        print("file: "+str(file) + " file_type: "+ str(file_type))
-                    if str(file_type) in str(accept_key):
+            if accept_key:
+                for file in os.listdir(r_path):
+                    if not os.path.isdir(file):
+                        file_type = mimetypes.MimeTypes().guess_type(file)[0]
+                        if args.verbose:
+                            print("file: "+str(file) + " file_type: "+ str(file_type))
+                        if str(file_type) in str(accept_key):
+                            body = body + '\r\n ' + file
+            else:
+                for file in os.listdir(r_path):
+                    if not os.path.isdir(file):
                         body = body + '\r\n ' + file
             if args.verbose:
                 print("File list: " + str(body))
@@ -123,7 +129,7 @@ def post_operation(path, conn):
     r_path = args.directory.rstrip("/") + path
     if args.verbose:
         print("Path is " + r_path)
-    if path[-1] != "/":
+    if path[-1] != "/" and READ_ONLY_FOLDER not in r_path:
         # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
             print("Target file is " + r_path)
@@ -140,6 +146,8 @@ def post_operation(path, conn):
         else:
             if args.verbose:
                 print("overwrite=true not the header, data can not be overwriten……")
+                if not os.path.isfile(r_path):
+                    print("The file is not exit! Creating a new file……")
             head = head + " 200 OK" + "\r\n"
             fo = open(r_path, "a+")
             fo.write(request[-1] + "\n")
@@ -157,7 +165,10 @@ def post_operation(path, conn):
             fo2.close()
             wfo.close()
     else:
-        head = head + " 404" + "\r\n"
+        if READ_ONLY_FOLDER in r_path:
+            head = head + " 403 Forbidden" + "\r\n"
+        else:
+            head = head + " 404 not exit" + "\r\n"
 
     head = head + temp_head
 

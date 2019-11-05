@@ -13,8 +13,9 @@ if __name__ == '__main__':
         thread = threading.Thread(target=read, args=(str(i),"httpc get -v 'http://localhost:8080/a.txt'"))
         thread.start()
         threads.append(thread)
+        thread.join(0.1)
 
-    for t in threads:
-        t.join(2)
-    print("All read clients finish!")
+    # for t in threads:
+    #     t.join(2)
+    # print("All read clients finish!")
 
