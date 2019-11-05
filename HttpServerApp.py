@@ -45,7 +45,7 @@ def find_disposition_name():
             elif "attachment" in line.lower():
                 if args.verbose:
                     print("Attachment in parameters!")
-                parameters = line.rsplit(":")[1].split(";")
+                parameters = line.rsplit(":", 1)[1].split(";")
                 for para in parameters:
                     if "filename" in para:
                         disposition_filename = para.split("=")[1]
