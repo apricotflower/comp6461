@@ -150,7 +150,7 @@ def format_select(body, header_type, root_path):
                 jsonfile += file + ' '
         response += '\r\n\r\n' + jsonfile + '\r\n'
         return response
-    elif header_type.__eq__("text/xml"):
+    elif header_type.__eq__("application/xml"):
         print(header_type)
         response = '<?xml version="1.0" ?>\r\n'
         if len(elements) == 0:
@@ -315,7 +315,7 @@ if __name__ == '__main__':
 # httpc get -v 'http://localhost:8080/a.txt'
 # httpc get -v -h Content-Type:text/plain 'http://localhost:8080/testfolder'
 # httpc get -v -h Content-Type:application/json 'http://localhost:8080'
-# httpc get -v -h Content-Type:text/xml 'http://localhost:8080'
+# httpc get -v -h Content-Type:application/xml 'http://localhost:8080'
 # httpc get -v -h Content-Type:text/html 'http://localhost:8080'
 # httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/a.txt'
 # httpc post -v -d 'This_is_a_modification' -h overwrite=true 'http://localhost:8080/a.txt'

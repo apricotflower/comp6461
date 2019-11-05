@@ -1,1 +1,1 @@
-Thisisanewfile
+Thisisanewfile{"Assignment": 1}

@@ -236,3 +236,19 @@ if __name__ == '__main__':
 
     run_server()
 
+# httpfs -v -p 8081 -d /Users/wangjiahui/Desktop/comp6461/testfolder
+
+# httpc get -v 'http://localhost:8080'
+# httpc get -v 'http://localhost:8080/testfolder'
+# httpc get -v 'http://localhost:8080/a.txt'
+# httpc get -v -h Content-Type:text/plain 'http://localhost:8080/testfolder'
+# httpc get -v -h Content-Type:application/json 'http://localhost:8080'
+# httpc get -v -h Content-Type:application/xml'http://localhost:8080'
+# httpc get -v -h Content-Type:text/html 'http://localhost:8080'
+# httpc post -v -d '{This is a modification}' 'http://localhost:8080/a.txt'
+# httpc post -v -d 'This_is_a_modification' -h overwrite=true 'http://localhost:8080/a.txt'
+# httpc post -v -d 'This_is_a_modification' -h overwrite=false 'http://localhost:8080/a.txt'
+# httpc post -v -f 'data.txt' 'http://localhost:8080/a.txt'
+
+# httpc get -v 'http://localhost:8080/ReadOnly/a.txt'
+# httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/ReadOnly/a.txt'
