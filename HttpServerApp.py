@@ -7,7 +7,7 @@ import threading
 
 GET = "get"
 POST = "post"
-READ_ONLY_FOLDER = "ReadOnly"
+READ_ONLY_FOLDER = "readonly"
 
 threadLock = threading.Lock()
 
@@ -126,7 +126,7 @@ def post_operation(path, conn):
     r_path = args.directory.rstrip("/") + path
     if args.verbose:
         print("Path is " + r_path)
-    if path[-1] != "/" and READ_ONLY_FOLDER not in r_path and os.path.isdir(r_path.rsplit("/", 1)[0] + "/"):
+    if path[-1] != "/" and READ_ONLY_FOLDER not in r_path.lower() and os.path.isdir(r_path.rsplit("/", 1)[0] + "/"):
         # request_file = path.rsplit("/", 1)[-1]
         if args.verbose:
             print("Target file is " + r_path)
