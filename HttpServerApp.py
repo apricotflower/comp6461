@@ -166,7 +166,7 @@ def post_operation(path, conn):
             fo2.close()
             wfo.close()
     else:
-        if READ_ONLY_FOLDER in r_path:
+        if READ_ONLY_FOLDER in r_path.lower():
             if args.verbose:
                 print("Requesting for a read only file. Forbidden!")
             head = head + " 403 Forbidden" + "\r\n"
