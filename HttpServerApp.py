@@ -250,7 +250,7 @@ def run_server(port):
 
     try:
         conn.bind((SERVER_ADDRESS, port))
-        print('Echo server is listening at', port)
+        print('Server is listening at', port)
         while True:
             data, sender = conn.recvfrom(1024)
             packet_response = Packet.from_bytes(data)
