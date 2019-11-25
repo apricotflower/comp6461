@@ -5,14 +5,17 @@ import socket
 from packet import Packet
 
 TIMEOUT = 5
+WINDOW_SIZE = 8
 
-MIN_LEN = 11
-MAX_LEN = 1024
+DATA_LEN = 10
 
 SYN = 0
 SYN_ACK = 1
 ACK = 2
 DATA = 3
+FIN = 4
+
+
 
 
 def handshake(router_addr, router_port, server_addr, server_port):
@@ -45,49 +48,155 @@ def handshake(router_addr, router_port, server_addr, server_port):
             print("Handshake fail, handshake again……")
         finally:
             conn.close()
+
+
+def send_data_packet_in_window(packet, router_addr, router_port):
+    while packet.packet_type != ACK:
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        conn.sendto(packet.to_bytes(), (router_addr, router_port))
+        try:
+            conn.settimeout(TIMEOUT)
+            response, sender = conn.recvfrom(1024)
+            packet = Packet.from_bytes(response)
+            if packet.packet_type == ACK:
+                conn.close()
+                break
+        except socket.timeout:
+            print("Response timeout ! Resend packet " + str(packet.seq_num))
+        finally:
+            conn.close()
+
+
+def receive():
+    port = 41830
+    buffer = {}
+    record = []
+    request_content = ""
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        conn.bind(('', port))
+        # print('Echo server is listening at', port)
+        while True:
+            data, sender = conn.recvfrom(1024)
+            packet_response = Packet.from_bytes(data)
+            sender_addr = packet_response.peer_ip_addr
+            sender_port = packet_response.peer_port
+            sender_seq = packet_response.seq_num
+
+            packet_ack = Packet(packet_type=ACK,
+                                seq_num=sender_seq,
+                                peer_ip_addr=sender_addr,
+                                peer_port=sender_port,
+                                payload=''.encode("utf-8"))
+
+            conn.sendto(packet_ack.to_bytes(), sender)
+            # receiving data
+            if sender_seq in record:
+                print("Receive repeat " + str(sender_seq))
+            else:
+                record.append(sender_seq)
+                if packet_response.packet_type == DATA:
+                    buffer[sender_seq] = packet_response
+                    if check_window(buffer):
+                        temp_content = ""
+                        for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get)+1):
+                            temp_content += buffer[i].payload.decode("utf-8")
+                        request_content = request_content + temp_content
+                        buffer.clear()
+                elif packet_response.packet_type == FIN:
+                    print(request_content)
+    finally:
+        conn.close()
+
+
+def check_window(buffer):
+    window_complete = True
+    for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get) + 1):
+        if i not in buffer.keys():
+            window_complete = False
+    return window_complete
+
+
+def run_client(msg, server_addr, server_port):
+    router_addr = "localhost"
+    router_port = 3000
+    sequence_num = 1
+
+    print("Start handshaking ……")
+    handshake(router_addr, router_port, server_addr, server_port)
     print("Established！")
 
+    print("Start sending data ……")
+    peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
 
-def run_client(router_addr, router_port, server_addr, server_port):
-    handshake(router_addr, router_port, server_addr, server_port)
+    # separate the data into packet
+    print("Separating the data into packet ……")
+    send_packets = []
+    msg_process = msg
+    while len(msg_process) != 0:
+        packet_data = Packet(packet_type=DATA,
+                             seq_num=sequence_num,
+                             peer_ip_addr=peer_ip,
+                             peer_port=server_port,
+                             payload=msg_process[:DATA_LEN].encode("utf-8")
+                             )
+        print("seq_num: " + str(sequence_num) + " Data: " + str(msg_process[:DATA_LEN]))
+        send_packets.append(packet_data)
+        sequence_num = sequence_num + 1
+        # if sequence_num == WINDOW_SIZE:
+        #     sequence_num = 1
+        msg_process = msg_process[DATA_LEN:]
 
-    # peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
-    # conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # timeout = 5
-    # try:
-    #     msg = "Hello World"
-    #     p = Packet(packet_type=0,
-    #                seq_num=1,
-    #                peer_ip_addr=peer_ip,
-    #                peer_port=server_port,
-    #                payload=msg.encode("utf-8"))
-    #     conn.sendto(p.to_bytes(), (router_addr, router_port))
-    #     print('Send "{}" to router'.format(msg))
-    #
-    #     # Try to receive a response within timeout
-    #     conn.settimeout(timeout)
-    #     print('Waiting for a response')
-    #     response, sender = conn.recvfrom(1024)
-    #     p = Packet.from_bytes(response)
-    #     print('Router: ', sender)
-    #     print('Packet: ', p)
-    #     print('Payload: ' + p.payload.decode("utf-8"))
-    #
-    # except socket.timeout:
-    #     print('No response after {}s'.format(timeout))
-    # finally:
-    #     conn.close()
+    print("Start sending windows ……")
+    while len(send_packets) != 0:
+        for packet in send_packets[:WINDOW_SIZE]:
+            print("Packet " + str(packet.seq_num) + " is sending ……")
+            send_data_packet_in_window(packet, router_addr, router_port)
+        send_packets = send_packets[WINDOW_SIZE:]
+
+    send_packets.clear()
+
+    print("Finishing client data ……")
+    finished = False
+    while not finished:
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        packet_syn = Packet(packet_type=FIN,
+                            seq_num=sequence_num,
+                            peer_ip_addr=peer_ip,
+                            peer_port=server_port,
+                            payload="".encode("utf-8"))
+        conn.sendto(packet_syn.to_bytes(), (router_addr, router_port))
+        try:
+            conn.settimeout(TIMEOUT)
+            response, sender = conn.recvfrom(1024)
+            packet_response = Packet.from_bytes(response)
+            if packet_response.packet_type == ACK:
+                finished = True
+                print("Client data finish !")
+        except socket.timeout:
+            print("Finish not ok")
+        finally:
+            conn.close()
 
 
 # Usage:
 # python echoclient.py --routerhost localhost --routerport 3000 --serverhost localhost --serverport 8007
+# router_x64.exe --port=3000 --drop-rate=0.2 --max-delay=10ms --seed=1
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--routerhost", help="router host", default="localhost")
-parser.add_argument("--routerport", help="router port", type=int, default=3000)
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--routerhost", help="router host", default="localhost")
+# parser.add_argument("--routerport", help="router port", type=int, default=3000)
+#
+# parser.add_argument("--serverhost", help="server host", default="localhost")
+# parser.add_argument("--serverport", help="server port", type=int, default=8007)
+# args = parser.parse_args()
 
-parser.add_argument("--serverhost", help="server host", default="localhost")
-parser.add_argument("--serverport", help="server port", type=int, default=8007)
-args = parser.parse_args()
+# run_client(args.routerhost, args.routerport, args.serverhost, args.serverport)
 
-run_client(args.routerhost, args.routerport, args.serverhost, args.serverport)
+msg = "The peer address of a packet also has two meanings. When you send a packet, the peer address is the address of the destination that you want to send. Thus, you have to set the peer address and port of the packet by the values of the receiver. On the other hands, when you receive a packet, the peer address is the address of the original sender. The router executes this translation."
+# msg = "hello"
+serverhost = "localhost"
+serverport = 8007
+
+run_client(msg, serverhost, serverport)
+receive()
