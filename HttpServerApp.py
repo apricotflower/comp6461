@@ -4,6 +4,25 @@ import os
 import mimetypes
 import threading
 
+import ipaddress
+
+from packet import Packet
+
+TIMEOUT = 5
+WINDOW_SIZE = 8
+
+DATA_LEN = 10
+
+SYN = 0
+SYN_ACK = 1
+ACK = 2
+DATA = 3
+FIN = 4
+
+SERVER_ADDRESS = "localhost"
+SERVER_PORT = 8007
+CLIENT_ADDRESS = "localhost"
+CLIENT_PORT = 41830
 
 GET = "get"
 POST = "post"
@@ -57,8 +76,8 @@ def find_disposition_name():
     return have_attachment, disposition_filename
 
 
-def get_operation(path, conn):
-    threadLock.acquire()
+def get_operation(path):
+    # threadLock.acquire()
     head = request[0].split()[2]
     body = ""
     r_path = args.directory.rstrip("/") + path
@@ -113,13 +132,14 @@ def get_operation(path, conn):
     head = head + add_headers(GET)
 
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
-    conn.sendall(response.encode('utf-8'))
-    conn.close()
-    threadLock.release()
+    return response
+    # conn.sendall(response.encode('utf-8'))
+    # conn.close()
+    # threadLock.release()
 
 
-def post_operation(path, conn):
-    threadLock.acquire()
+def post_operation(path):
+    # threadLock.acquire()
     head = request[0].split()[2]
     body = ""
     temp_head = add_headers(POST)
@@ -184,40 +204,203 @@ def post_operation(path, conn):
     head = head + temp_head
 
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
-    conn.sendall(response.encode('utf-8'))
-    conn.close()
-    threadLock.release()
+    return response
+    # conn.sendall(response.encode('utf-8'))
+    # conn.close()
+    # threadLock.release()
+
+# def run_server():
+#     threads = []
+#     global request
+#     host = "localhost"
+#     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#     listener.bind((host, args.port))
+#     listener.listen(10)
+#     while True:
+#         conn, addr = listener.accept()
+#         request = conn.recv(1024).decode("utf-8")
+#         if args.verbose:
+#             print("**"*40)
+#             print("Client from addr:" + str(addr))
+#             print("Receive request: " + str(request))
+#         request = request.split('\r\n')
+#         line_1 = request[0].split()
+#         method = line_1[0]
+#         request_path = line_1[1]
+#         if args.verbose:
+#             print("request_path: " + request_path)
+#             print("method: " + method)
+#         if method.lower() == GET:
+#             thread = threading.Thread(target=get_operation, args=(request_path, conn))
+#         elif method.lower() == POST:
+#             thread = threading.Thread(target=post_operation, args=(request_path, conn))
+#
+#         thread.start()
+#         threads.append(thread)
+#         thread.join()
 
 
-def run_server():
-    threads = []
+def run_server(port):
     global request
-    host = "localhost"
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    listener.bind((host, args.port))
-    listener.listen(10)
-    while True:
-        conn, addr = listener.accept()
-        request = conn.recv(1024).decode("utf-8")
-        if args.verbose:
-            print("**"*40)
-            print("Client from addr:" + str(addr))
-            print("Receive request: " + str(request))
-        request = request.split('\r\n')
-        line_1 = request[0].split()
-        method = line_1[0]
-        request_path = line_1[1]
-        if args.verbose:
-            print("request_path: " + request_path)
-            print("method: " + method)
-        if method.lower() == GET:
-            thread = threading.Thread(target=get_operation, args=(request_path, conn))
-        elif method.lower() == POST:
-            thread = threading.Thread(target=post_operation, args=(request_path, conn))
+    buffer = {}
+    record = []
+    request = ""
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    established = False
 
-        thread.start()
-        threads.append(thread)
-        thread.join()
+    try:
+        conn.bind((SERVER_ADDRESS, port))
+        print('Echo server is listening at', port)
+        while True:
+            data, sender = conn.recvfrom(1024)
+            packet_response = Packet.from_bytes(data)
+            sender_addr = packet_response.peer_ip_addr
+            sender_port = packet_response.peer_port
+            sender_seq = packet_response.seq_num
+
+            if not established:
+                # handshake step
+                if packet_response.packet_type == SYN:
+                    print("Receive handshake SYN from " + str(sender_addr) + " : " + str(sender_port))
+                    packet_syn_ack = Packet(packet_type=SYN_ACK,
+                                            seq_num=0,
+                                            peer_ip_addr=sender_addr,
+                                            peer_port=sender_port,
+                                            payload=''.encode("utf-8"))
+                    conn.sendto(packet_syn_ack.to_bytes(), sender)
+                    print("Sending response SYN_ACK ……")
+                elif packet_response.packet_type == ACK:
+                    print("Receive ACK ! Established !")
+                    established = True
+
+            else:
+                packet_ack = Packet(packet_type=ACK,
+                                    seq_num=sender_seq,
+                                    peer_ip_addr=sender_addr,
+                                    peer_port=sender_port,
+                                    payload=''.encode("utf-8"))
+
+                conn.sendto(packet_ack.to_bytes(), sender)
+                # receiving data
+                if sender_seq in record:
+                    print("Receive repeat " + str(sender_seq))
+                else:
+                    record.append(sender_seq)
+                    if packet_response.packet_type == DATA:
+                        buffer[sender_seq] = packet_response
+                        if check_window(buffer):
+                            temp_content = ""
+                            for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get)+1):
+                                temp_content += buffer[i].payload.decode("utf-8")
+                            request = request + temp_content
+                            buffer.clear()
+                    elif packet_response.packet_type == FIN:
+                        print(request)
+                        handle_client("localhost", 41830)
+
+    finally:
+        conn.close()
+
+
+def check_window(buffer):
+    window_complete = True
+    for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get) + 1):
+        if i not in buffer.keys():
+            window_complete = False
+    return window_complete
+
+
+def handle_client( server_addr, server_port):
+    global request
+    request = request.split('\r\n')
+    line_1 = request[0].split()
+    method = line_1[0]
+    request_path = line_1[1]
+    if args.verbose:
+        print("request_path: " + request_path)
+        print("method: " + method)
+    if method.lower() == GET:
+        # thread = threading.Thread(target=get_operation, args=(request_path, conn))
+        msg = get_operation(request_path)
+    elif method.lower() == POST:
+        # thread = threading.Thread(target=post_operation, args=(request_path, conn))
+        msg = post_operation(request_path)
+
+    # thread.start()
+    # thread.join()
+
+    router_addr = "localhost"
+    router_port = 3000
+    sequence_num = 1
+    print("Start sending data ……")
+    peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
+
+
+    # separate the data into packet
+    print("Separating the data into packet ……")
+    send_packets = []
+    msg_process = msg
+    while len(msg_process) != 0:
+        packet_data = Packet(packet_type=DATA,
+                             seq_num=sequence_num,
+                             peer_ip_addr=peer_ip,
+                             peer_port=server_port,
+                             payload=msg_process[:DATA_LEN].encode("utf-8")
+                             )
+        print("seq_num: " + str(sequence_num) + " Data: " + str(msg_process[:DATA_LEN]))
+        send_packets.append(packet_data)
+        sequence_num = sequence_num + 1
+        # if sequence_num == WINDOW_SIZE:
+        #     sequence_num = 1
+        msg_process = msg_process[DATA_LEN:]
+
+    print("Start sending windows ……")
+    while len(send_packets) != 0:
+        for packet in send_packets[:WINDOW_SIZE]:
+            print("Packet " + str(packet.seq_num) + " is sending ……")
+            send_data_packet_in_window(packet, router_addr, router_port)
+        send_packets = send_packets[WINDOW_SIZE:]
+
+    send_packets.clear()
+
+    print("Finishing server data ……")
+    finished = False
+    while not finished:
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        packet_syn = Packet(packet_type=FIN,
+                            seq_num=sequence_num,
+                            peer_ip_addr=peer_ip,
+                            peer_port=server_port,
+                            payload="".encode("utf-8"))
+        conn.sendto(packet_syn.to_bytes(), (router_addr, router_port))
+        try:
+            conn.settimeout(TIMEOUT)
+            response, sender = conn.recvfrom(1024)
+            packet_response = Packet.from_bytes(response)
+            if packet_response.packet_type == ACK:
+                finished = True
+                print("Receive ACK from Client.Server data finish !")
+        except socket.timeout:
+            print("Finish not ok")
+        finally:
+            conn.close()
+
+
+def send_data_packet_in_window(packet, router_addr, router_port):
+    while packet.packet_type != ACK:
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        conn.sendto(packet.to_bytes(), (router_addr, router_port))
+        try:
+            conn.settimeout(TIMEOUT)
+            response, sender = conn.recvfrom(1024)
+            packet = Packet.from_bytes(response)
+            if packet.packet_type == ACK:
+                conn.close()
+                break
+        except socket.timeout:
+            print("Response timeout ! Resend packet " + str(packet.seq_num))
+        finally:
+            conn.close()
 
 
 if __name__ == '__main__':
@@ -234,7 +417,7 @@ if __name__ == '__main__':
         print("Port: " + str(args.port))
         print("Directory that the server will use: " + str(args.directory))
 
-    run_server()
+    run_server(args.port)
 
 # httpfs -v -p 8081 -d /Users/wangjiahui/Desktop/comp6461/testfolder
 

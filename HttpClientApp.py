@@ -1,6 +1,8 @@
 import socket
 import urllib.parse
 import os
+import udp_client
+
 
 GET = "get"
 POST = "post"
@@ -22,12 +24,6 @@ def send_receive_data(host, abs_path, port, operation, headers, request_data):
     # print("request_data: " + request_data)
     # print("**"*20)
     request = ""
-
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # print(host)
-    # print(port)
-    # print(host.split(":")[0])
-    my_socket.connect((host.rsplit(":")[0], port))
     scheme_version_header = " HTTP/1.0\r\n"
     if headers != "":
         headers = headers + "\r\n"
@@ -49,18 +45,30 @@ def send_receive_data(host, abs_path, port, operation, headers, request_data):
             headers = headers + "Content-Length: " + str(len(request_data)) + "\r\n"
         request = do + abs_path + scheme_version_header + headers + "\r\n" + request_data
 
-    # print(request)
-    my_socket.send(request.encode('utf-8'))
-    # my_socket.send(request.encode('ISO-8859-1'))
-    data = ""
-    while True:
-        buf_data = my_socket.recv(1024).decode('ISO-8859-1')
-        # buf_data = my_socket.recv(1024).decode('utf-8')
-        data = data + buf_data
-        if not buf_data:
-            break
+    # my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # # print(host)
+    # # print(port)
+    # # print(host.split(":")[0])
+    # my_socket.connect((host.rsplit(":")[0], port))
+    #
+    # # print(request)
+    # my_socket.send(request.encode('utf-8'))
+    # # my_socket.send(request.encode('ISO-8859-1'))
+    # data = ""
+    # while True:
+    #     buf_data = my_socket.recv(1024).decode('ISO-8859-1')
+    #     # buf_data = my_socket.recv(1024).decode('utf-8')
+    #     data = data + buf_data
+    #     if not buf_data:
+    #         break
+
+    # print(host)
+    # print(port)
+    udp_client.run_client(request, host.split(":")[0], port)
+    data = udp_client.receive()
+
     result_head, result_body = data.split('\r\n\r\n', 1)
-    my_socket.close()
+    # my_socket.close()
     return result_head, result_body
 
 

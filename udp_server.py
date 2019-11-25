@@ -15,6 +15,11 @@ ACK = 2
 DATA = 3
 FIN = 4
 
+SERVER_ADDRESS = "localhost"
+SERVER_PORT = 8007
+CLIENT_ADDRESS = "localhost"
+CLIENT_PORT = 41830
+
 
 def run_server(port):
     buffer = {}
@@ -24,7 +29,7 @@ def run_server(port):
     established = False
 
     try:
-        conn.bind(('', port))
+        conn.bind((SERVER_ADDRESS, port))
         print('Echo server is listening at', port)
         while True:
             data, sender = conn.recvfrom(1024)
@@ -137,7 +142,7 @@ def handle_client(request_content, server_addr, server_port):
             packet_response = Packet.from_bytes(response)
             if packet_response.packet_type == ACK:
                 finished = True
-                print("Server data finish !")
+                print("Receive ACK from Client.Server data finish !")
         except socket.timeout:
             print("Finish not ok")
         finally:
@@ -162,7 +167,10 @@ def send_data_packet_in_window(packet, router_addr, router_port):
 
 
 # Usage python udp_server.py [--port port-number]
-parser = argparse.ArgumentParser()
-parser.add_argument("--port", help="echo server port", type=int, default=8007)
-args = parser.parse_args()
-run_server(args.port)
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--port", help="echo server port", type=int, default=8007)
+# args = parser.parse_args()
+# run_server(args.port)
+
+
+run_server(SERVER_PORT)

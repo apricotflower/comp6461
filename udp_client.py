@@ -16,8 +16,6 @@ DATA = 3
 FIN = 4
 
 
-
-
 def handshake(router_addr, router_port, server_addr, server_port):
     established = False
     while not established:
@@ -104,7 +102,8 @@ def receive():
                         request_content = request_content + temp_content
                         buffer.clear()
                 elif packet_response.packet_type == FIN:
-                    print(request_content)
+                    return request_content
+                    # print(request_content)
     finally:
         conn.close()
 
@@ -172,7 +171,7 @@ def run_client(msg, server_addr, server_port):
             packet_response = Packet.from_bytes(response)
             if packet_response.packet_type == ACK:
                 finished = True
-                print("Client data finish !")
+                print("Receive ACK from Server. Client data finish !")
         except socket.timeout:
             print("Finish not ok")
         finally:
@@ -183,20 +182,11 @@ def run_client(msg, server_addr, server_port):
 # python echoclient.py --routerhost localhost --routerport 3000 --serverhost localhost --serverport 8007
 # router_x64.exe --port=3000 --drop-rate=0.2 --max-delay=10ms --seed=1
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument("--routerhost", help="router host", default="localhost")
-# parser.add_argument("--routerport", help="router port", type=int, default=3000)
-#
-# parser.add_argument("--serverhost", help="server host", default="localhost")
-# parser.add_argument("--serverport", help="server port", type=int, default=8007)
-# args = parser.parse_args()
 
-# run_client(args.routerhost, args.routerport, args.serverhost, args.serverport)
-
-msg = "The peer address of a packet also has two meanings. When you send a packet, the peer address is the address of the destination that you want to send. Thus, you have to set the peer address and port of the packet by the values of the receiver. On the other hands, when you receive a packet, the peer address is the address of the original sender. The router executes this translation."
-# msg = "hello"
+# msg = "The peer address of a packet also has two meanings. When you send a packet, the peer address is the address of the destination that you want to send. Thus, you have to set the peer address and port of the packet by the values of the receiver. On the other hands, when you receive a packet, the peer address is the address of the original sender. The router executes this translation."
+msg = "hello"
 serverhost = "localhost"
 serverport = 8007
 
-run_client(msg, serverhost, serverport)
-receive()
+# run_client(msg, serverhost, serverport)
+# print(receive())
