@@ -1,6 +1,7 @@
 import argparse
 import socket
 import ipaddress
+import threading
 
 from packet import Packet
 
@@ -68,13 +69,19 @@ def run_server(port):
                     record.append(sender_seq)
                     if packet_response.packet_type == DATA:
                         buffer[sender_seq] = packet_response
+                        # if check_window(buffer):
+                        #     temp_content = ""
+                        #     for i in range(min(buffer), max(buffer)+1):
+                        #         temp_content += buffer[i].payload.decode("utf-8")
+                        #     request_content = request_content + temp_content
+                        #     buffer.clear()
+                    elif packet_response.packet_type == FIN:
                         if check_window(buffer):
                             temp_content = ""
-                            for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get)+1):
+                            for i in range(min(buffer), max(buffer)+1):
                                 temp_content += buffer[i].payload.decode("utf-8")
                             request_content = request_content + temp_content
                             buffer.clear()
-                    elif packet_response.packet_type == FIN:
                         print(request_content)
                         handle_client(request_content,"localhost", 41830)
     finally:
@@ -83,7 +90,7 @@ def run_server(port):
 
 def check_window(buffer):
     window_complete = True
-    for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get) + 1):
+    for i in range(min(buffer), max(buffer) + 1):
         if i not in buffer.keys():
             window_complete = False
     return window_complete
@@ -119,9 +126,16 @@ def handle_client(request_content, server_addr, server_port):
 
     print("Start sending windows ……")
     while len(send_packets) != 0:
+        threads = []
         for packet in send_packets[:WINDOW_SIZE]:
             print("Packet " + str(packet.seq_num) + " is sending ……")
-            send_data_packet_in_window(packet, router_addr, router_port)
+            # send_data_packet_in_window(packet, router_addr, router_port)
+            thread = threading.Thread(target=send_data_packet_in_window, args=(packet, router_addr, router_port))
+            thread.start()
+            # thread.join()
+            threads.append(thread)
+        for t in threads:
+            t.join()
         send_packets = send_packets[WINDOW_SIZE:]
 
     send_packets.clear()
