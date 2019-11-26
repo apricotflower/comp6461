@@ -17,6 +17,7 @@ OUTPUT = "-o"
 HELP = "help"
 EXIT = "exit"
 
+
 def send_receive_data(host, abs_path, port, operation, headers, request_data):
     # print("host: " + host)
     # print("abs_url:" + abs_path)
