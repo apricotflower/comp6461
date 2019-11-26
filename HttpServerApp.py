@@ -5,6 +5,7 @@ import mimetypes
 import threading
 import send_data_helper
 import receive_data_helper
+import time
 
 import ipaddress
 
@@ -290,15 +291,18 @@ def run_server(port):
                     print("Receive repeat " + str(sender_seq))
                 else:
                     record.append(sender_seq)
+                    # if packet_response.packet_type == DATA or packet_response.packet_type == FIN:
+                    #     buffer[sender_seq] = packet_response
+                    #     if len(buffer) == WINDOW_SIZE:
                     if packet_response.packet_type == DATA:
                         buffer[sender_seq] = packet_response
-                        # if check_window(buffer):
-                        #     temp_content = ""
-                        #     for i in range(min(buffer), max(buffer)+1):
-                        #         temp_content += buffer[i].payload.decode("utf-8")
-                        #     request = request + temp_content
-                        #     buffer.clear()
-                    elif packet_response.packet_type == FIN: #BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去，无法发送ACK
+                        if check_window(buffer) and len(buffer) == WINDOW_SIZE:
+                            temp_content = ""
+                            for i in range(min(buffer), max(buffer)+1):
+                                temp_content += buffer[i].payload.decode("utf-8")
+                            request = request + temp_content
+                            buffer.clear()
+                    elif packet_response.packet_type == FIN: #BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去handle_client不在监听，无法发送ACK
                         print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
                         print(buffer.keys())
                         if check_window(buffer):
@@ -308,6 +312,7 @@ def run_server(port):
                             request = request + temp_content
                             buffer.clear()
                         print(request)
+                        time.sleep(5)
                         handle_client("localhost", 41830)
 
     finally:

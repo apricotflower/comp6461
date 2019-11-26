@@ -67,6 +67,13 @@ def send_data(msg, server_addr, server_port):
         #     sequence_num = 1
         msg_process = msg_process[DATA_LEN:]
 
+        # packet_fin = Packet(packet_type=FIN,
+        #                     seq_num=sequence_num,
+        #                     peer_ip_addr=peer_ip,
+        #                     peer_port=server_port,
+        #                     payload="".encode("utf-8"))
+        # send_packets.append(packet_fin)
+
     print("Start sending windows ……")
     while len(send_packets) != 0:
         threads = []
@@ -87,16 +94,17 @@ def send_data(msg, server_addr, server_port):
     finished = False
     while not finished:
         conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        packet_syn = Packet(packet_type=FIN,
+        packet_fin = Packet(packet_type=FIN,
                             seq_num=sequence_num,
                             peer_ip_addr=peer_ip,
                             peer_port=server_port,
                             payload="".encode("utf-8"))
-        conn.sendto(packet_syn.to_bytes(), (router_addr, router_port))
+        conn.sendto(packet_fin.to_bytes(), (router_addr, router_port))
         try:
             conn.settimeout(TIMEOUT)
             response, sender = conn.recvfrom(1024)
             packet_response = Packet.from_bytes(response)
+            print("FIN: "+ str(packet_response.packet_type))
             if packet_response.packet_type == ACK:
                 finished = True
                 print("Receive ACK from Server. Client data finish !")

@@ -81,13 +81,13 @@ def receive():
                 record.append(sender_seq)
                 if packet_response.packet_type == DATA:
                     buffer[sender_seq] = packet_response
-                    # if check_window(buffer):
-                    #     temp_content = ""
-                    #     for i in range(min(buffer, key=buffer.get), max(buffer, key=buffer.get)+1):
-                    #         temp_content += buffer[i].payload.decode("utf-8")
-                    #     request_content = request_content + temp_content
-                    #     buffer.clear()
-                elif packet_response.packet_type == FIN :
+                    if check_window(buffer) and len(buffer) == WINDOW_SIZE:
+                        temp_content = ""
+                        for i in range(min(buffer), max(buffer)+1):
+                            temp_content += buffer[i].payload.decode("utf-8")
+                        request_content = request_content + temp_content
+                        buffer.clear()
+                elif packet_response.packet_type == FIN:
                     # first_fin = False
                     if check_window(buffer):
                         temp_content = ""
