@@ -60,7 +60,7 @@ def send_data(msg, server_addr, server_port):
                              peer_port=server_port,
                              payload=msg_process[:DATA_LEN].encode("utf-8")
                              )
-        print("seq_num: " + str(sequence_num) + " Data: " + str(msg_process[:DATA_LEN]))
+        #print("seq_num: " + str(sequence_num) + " Data: " + str(msg_process[:DATA_LEN]))
         send_packets.append(packet_data)
         sequence_num = sequence_num + 1
         # if sequence_num == WINDOW_SIZE:
@@ -91,24 +91,33 @@ def send_data(msg, server_addr, server_port):
     send_packets.clear()
 
     print("Finishing client data ……")
-    finished = False
-    while not finished:
-        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        packet_fin = Packet(packet_type=FIN,
-                            seq_num=sequence_num,
-                            peer_ip_addr=peer_ip,
-                            peer_port=server_port,
-                            payload="".encode("utf-8"))
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    packet_fin = Packet(packet_type=FIN,
+                        seq_num=sequence_num,
+                        peer_ip_addr=peer_ip,
+                        peer_port=server_port,
+                        payload="".encode("utf-8"))
+    for i in range(0,20):
         conn.sendto(packet_fin.to_bytes(), (router_addr, router_port))
-        try:
-            conn.settimeout(TIMEOUT)
-            response, sender = conn.recvfrom(1024)
-            packet_response = Packet.from_bytes(response)
-            print("FIN: "+ str(packet_response.packet_type))
-            if packet_response.packet_type == ACK:
-                finished = True
-                print("Receive ACK from Server. Client data finish !")
-        except socket.timeout:
-            print("Finish not ok")
-        finally:
-            conn.close()
+
+    # finished = False
+    # while not finished:
+    #     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    #     packet_fin = Packet(packet_type=FIN,
+    #                         seq_num=sequence_num,
+    #                         peer_ip_addr=peer_ip,
+    #                         peer_port=server_port,
+    #                         payload="".encode("utf-8"))
+    #     conn.sendto(packet_fin.to_bytes(), (router_addr, router_port))
+    #     try:
+    #         conn.settimeout(TIMEOUT)
+    #         response, sender = conn.recvfrom(1024)
+    #         packet_response = Packet.from_bytes(response)
+    #         print("FIN: "+ str(packet_response.packet_type))
+    #         if packet_response.packet_type == ACK:
+    #             finished = True
+    #             print("Receive ACK from Server. Client data finish !")
+    #     except socket.timeout:
+    #         print("Finish not ok")
+    #     finally:
+    #         conn.close()

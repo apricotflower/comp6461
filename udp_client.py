@@ -76,7 +76,8 @@ def receive():
             conn.sendto(packet_ack.to_bytes(), sender)
             # receiving data
             if sender_seq in record:
-                print("Receive repeat " + str(sender_seq))
+                if packet_response.packet_type != FIN:
+                    print("Receive repeat " + str(sender_seq))
             else:
                 record.append(sender_seq)
                 if packet_response.packet_type == DATA:
