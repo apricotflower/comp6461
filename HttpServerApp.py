@@ -250,6 +250,7 @@ def run_server(port):
     request = ""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     established = False
+    pre_seq = 0
 
     try:
         conn.bind((SERVER_ADDRESS, port))
@@ -277,8 +278,7 @@ def run_server(port):
                     established = True
 
             else:
-                # request = receive_data_helper.receive_data(conn, packet_response, sender_seq, sender_addr, sender_port, sender, record, buffer)
-                # handle_client("localhost", 41830)
+                # request = receive_data_helper.receive_data(2,conn,request,record,buffer,pre_seq)
                 packet_ack = Packet(packet_type=ACK,
                                     seq_num=sender_seq,
                                     peer_ip_addr=sender_addr,
@@ -288,32 +288,30 @@ def run_server(port):
                 conn.sendto(packet_ack.to_bytes(), sender)
                 # receiving data
                 if sender_seq in record:
-                    if packet_response.packet_type != FIN:
+                    if packet_response.packet_type != FIN and sender_seq != 0:
                         print("Receive repeat " + str(sender_seq))
                 else:
                     record.append(sender_seq)
-                    # if packet_response.packet_type == DATA or packet_response.packet_type == FIN:
-                    #     buffer[sender_seq] = packet_response
-                    #     if len(buffer) == WINDOW_SIZE:
                     if packet_response.packet_type == DATA:
-                        buffer[sender_seq] = packet_response
-                        if check_window(buffer) and len(buffer) == WINDOW_SIZE:
-                            temp_content = ""
-                            for i in range(min(buffer), max(buffer)+1):
-                                temp_content += buffer[i].payload.decode("utf-8")
-                            request = request + temp_content
-                            buffer.clear()
+                        if packet_response.seq_num == pre_seq + 1:
+                            request = request + packet_response.payload.decode("utf-8")
+                            pre_seq = pre_seq + 1
+                        else:
+                            buffer[sender_seq] = packet_response
+                        if len(buffer) != 0:
+                            if check_window(buffer) and min(buffer) == pre_seq + 1:
+                                temp_content = ""
+                                for i in range(min(buffer), max(buffer)+1):
+                                    temp_content += buffer[i].payload.decode("utf-8")
+                                request = request + temp_content
+                                pre_seq = pre_seq + len(buffer)
+                                buffer.clear()
+
                     elif packet_response.packet_type == FIN: #BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去handle_client不在监听，无法发送ACK
-                        print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
-                        print(buffer.keys())
-                        if check_window(buffer):
-                            temp_content = ""
-                            for i in range(min(buffer), max(buffer)+1):
-                                temp_content += buffer[i].payload.decode("utf-8")
-                            request = request + temp_content
-                            buffer.clear()
+                        # print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
+                        # print(buffer.keys())
                         print(request)
-                        time.sleep(5)
+                        # time.sleep(5)
                         handle_client("localhost", 41830)
 
     finally:

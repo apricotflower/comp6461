@@ -3,6 +3,7 @@ import ipaddress
 import socket
 import threading
 import send_data_helper
+import receive_data_helper
 
 from packet import Packet
 
@@ -39,11 +40,12 @@ def handshake(router_addr, router_port, server_addr, server_port):
                 print("Receive response SYN_ACK from " + str(packet_response.peer_ip_addr) + " : " + str(packet_response.peer_port))
                 established = True
                 packet_ack = Packet(packet_type=ACK,
-                                seq_num=1,
+                                seq_num=0,
                                 peer_ip_addr=ip,
                                 peer_port=server_port,
                                 payload="".encode("utf-8"))
-                conn.sendto(packet_ack.to_bytes(), (router_addr, router_port))
+                for i in range (0,20):
+                    conn.sendto(packet_ack.to_bytes(), (router_addr, router_port))
         except socket.timeout:
             print("Handshake fail, handshake again……")
         finally:
@@ -54,13 +56,14 @@ def receive():
     port = 41830
     buffer = {}
     record = []
-    request_content = ""
-    # first_fin = True
+    request = ""
+    pre_seq = 0
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         conn.bind(('', port))
         # print('Echo server is listening at', port)
         while True:
+            # request = receive_data_helper.receive_data(1, conn, request, record, buffer, pre_seq)
             data, sender = conn.recvfrom(1024)
             packet_response = Packet.from_bytes(data)
             sender_addr = packet_response.peer_ip_addr
@@ -81,23 +84,23 @@ def receive():
             else:
                 record.append(sender_seq)
                 if packet_response.packet_type == DATA:
-                    buffer[sender_seq] = packet_response
-                    if check_window(buffer) and len(buffer) == WINDOW_SIZE:
-                        temp_content = ""
-                        for i in range(min(buffer), max(buffer)+1):
-                            temp_content += buffer[i].payload.decode("utf-8")
-                        request_content = request_content + temp_content
-                        buffer.clear()
+                    if packet_response.seq_num == pre_seq + 1:
+                        request = request + packet_response.payload.decode("utf-8")
+                        pre_seq = pre_seq + 1
+                    else:
+                        buffer[sender_seq] = packet_response
+                    if len(buffer) != 0:
+                        if check_window(buffer) and min(buffer) == pre_seq + 1:
+                            temp_content = ""
+                            for i in range(min(buffer), max(buffer) + 1):
+                                temp_content += buffer[i].payload.decode("utf-8")
+                            request = request + temp_content
+                            pre_seq = pre_seq + len(buffer)
+                            buffer.clear()
                 elif packet_response.packet_type == FIN:
-                    # first_fin = False
-                    if check_window(buffer):
-                        temp_content = ""
-                        for i in range(min(buffer), max(buffer) + 1):
-                            temp_content += buffer[i].payload.decode("utf-8")
-                        request_content = request_content + temp_content
-                        buffer.clear()
                     conn.close()
-                    return request_content
+                    # print(request)
+                    return request
                     # print(request_content)
     finally:
         conn.close()

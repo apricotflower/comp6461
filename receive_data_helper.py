@@ -1,4 +1,4 @@
-import socket
+import HttpServerApp
 
 from packet import Packet
 
@@ -13,9 +13,17 @@ ACK = 2
 DATA = 3
 FIN = 4
 
+CLIENT = 1
+SERVER =2
 
-def receive_data(conn,packet_response, sender_seq,sender_addr,sender_port,sender,record,buffer):
-    request = ""
+
+def receive_data(client_server,conn,request,record,buffer,pre_seq):
+    data, sender = conn.recvfrom(1024)
+    packet_response = Packet.from_bytes(data)
+    sender_addr = packet_response.peer_ip_addr
+    sender_port = packet_response.peer_port
+    sender_seq = packet_response.seq_num
+
     packet_ack = Packet(packet_type=ACK,
                         seq_num=sender_seq,
                         peer_ip_addr=sender_addr,
@@ -25,28 +33,33 @@ def receive_data(conn,packet_response, sender_seq,sender_addr,sender_port,sender
     conn.sendto(packet_ack.to_bytes(), sender)
     # receiving data
     if sender_seq in record:
-        print("Receive repeat " + str(sender_seq))
+        if packet_response.packet_type != FIN:
+            print("Receive repeat " + str(sender_seq))
     else:
         record.append(sender_seq)
         if packet_response.packet_type == DATA:
-            buffer[sender_seq] = packet_response
-            # if check_window(buffer):
-            #     temp_content = ""
-            #     for i in range(min(buffer), max(buffer)+1):
-            #         temp_content += buffer[i].payload.decode("utf-8")
-            #     request = request + temp_content
-            #     buffer.clear()
-        elif packet_response.packet_type == FIN:  # BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去，无法发送ACK
-            print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
-            print(buffer.keys())
-            if check_window(buffer):
-                temp_content = ""
-                for i in range(min(buffer), max(buffer) + 1):
-                    temp_content += buffer[i].payload.decode("utf-8")
-                request = request + temp_content
-                buffer.clear()
-            print(request)
-            return request
+            if packet_response.seq_num == pre_seq + 1:
+                request = request + packet_response.payload.decode("utf-8")
+                pre_seq = pre_seq + 1
+            else:
+                buffer[sender_seq] = packet_response
+            if len(buffer) != 0:
+                if check_window(buffer) and min(buffer) == pre_seq + 1:
+                    temp_content = ""
+                    for i in range(min(buffer), max(buffer) + 1):
+                        temp_content += buffer[i].payload.decode("utf-8")
+                    request = request + temp_content
+                    pre_seq = pre_seq + len(buffer)
+                    buffer.clear()
+        elif packet_response.packet_type == FIN:
+            conn.close()
+            # print(request)
+            if client_server == CLIENT:
+                return request
+            elif client_server == SERVER:
+                return request
+                HttpServerApp.handle_client("localhost", 41830)
+            # print(request_content)
 
 
 def check_window(buffer):
