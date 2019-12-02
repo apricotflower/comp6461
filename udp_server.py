@@ -2,6 +2,7 @@ import argparse
 import socket
 import ipaddress
 import threading
+import send_data_helper
 
 from packet import Packet
 
@@ -23,15 +24,17 @@ CLIENT_PORT = 41830
 
 
 def run_server(port):
+    global request
     buffer = {}
     record = []
-    request_content = ""
+    request = ""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     established = False
+    pre_seq = 0
 
     try:
         conn.bind((SERVER_ADDRESS, port))
-        print('Echo server is listening at', port)
+        print('Server is listening at', port)
         while True:
             data, sender = conn.recvfrom(1024)
             packet_response = Packet.from_bytes(data)
@@ -55,6 +58,7 @@ def run_server(port):
                     established = True
 
             else:
+                # request = receive_data_helper.receive_data(2,conn,request,record,buffer,pre_seq)
                 packet_ack = Packet(packet_type=ACK,
                                     seq_num=sender_seq,
                                     peer_ip_addr=sender_addr,
@@ -64,26 +68,32 @@ def run_server(port):
                 conn.sendto(packet_ack.to_bytes(), sender)
                 # receiving data
                 if sender_seq in record:
-                    print("Receive repeat " + str(sender_seq))
+                    if packet_response.packet_type != FIN and sender_seq != 0:
+                        print("Receive repeat " + str(sender_seq))
                 else:
                     record.append(sender_seq)
                     if packet_response.packet_type == DATA:
-                        buffer[sender_seq] = packet_response
-                        # if check_window(buffer):
-                        #     temp_content = ""
-                        #     for i in range(min(buffer), max(buffer)+1):
-                        #         temp_content += buffer[i].payload.decode("utf-8")
-                        #     request_content = request_content + temp_content
-                        #     buffer.clear()
-                    elif packet_response.packet_type == FIN:
-                        if check_window(buffer):
-                            temp_content = ""
-                            for i in range(min(buffer), max(buffer)+1):
-                                temp_content += buffer[i].payload.decode("utf-8")
-                            request_content = request_content + temp_content
-                            buffer.clear()
-                        print(request_content)
-                        handle_client(request_content,"localhost", 41830)
+                        if packet_response.seq_num == pre_seq + 1:
+                            request = request + packet_response.payload.decode("utf-8")
+                            pre_seq = pre_seq + 1
+                        else:
+                            buffer[sender_seq] = packet_response
+                        if len(buffer) != 0:
+                            if check_window(buffer) and min(buffer) == pre_seq + 1:
+                                temp_content = ""
+                                for i in range(min(buffer), max(buffer)+1):
+                                    temp_content += buffer[i].payload.decode("utf-8")
+                                request = request + temp_content
+                                pre_seq = pre_seq + len(buffer)
+                                buffer.clear()
+
+                    elif packet_response.packet_type == FIN: #BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去handle_client不在监听，无法发送ACK
+                        # print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
+                        # print(buffer.keys())
+                        print(request)
+                        # time.sleep(5)
+                        handle_client(request,"localhost", 41830)
+
     finally:
         conn.close()
 
@@ -97,87 +107,9 @@ def check_window(buffer):
 
 
 def handle_client(request_content, server_addr, server_port):
-    msg = "small shit " + request_content + " big shit "
+    msg = "small" + request_content + " big "
 
-    router_addr = "localhost"
-    router_port = 3000
-    sequence_num = 1
-    print("Start sending data ……")
-    peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
-
-
-    # separate the data into packet
-    print("Separating the data into packet ……")
-    send_packets = []
-    msg_process = msg
-    while len(msg_process) != 0:
-        packet_data = Packet(packet_type=DATA,
-                             seq_num=sequence_num,
-                             peer_ip_addr=peer_ip,
-                             peer_port=server_port,
-                             payload=msg_process[:DATA_LEN].encode("utf-8")
-                             )
-        print("seq_num: " + str(sequence_num) + " Data: " + str(msg_process[:DATA_LEN]))
-        send_packets.append(packet_data)
-        sequence_num = sequence_num + 1
-        # if sequence_num == WINDOW_SIZE:
-        #     sequence_num = 1
-        msg_process = msg_process[DATA_LEN:]
-
-    print("Start sending windows ……")
-    while len(send_packets) != 0:
-        threads = []
-        for packet in send_packets[:WINDOW_SIZE]:
-            print("Packet " + str(packet.seq_num) + " is sending ……")
-            # send_data_packet_in_window(packet, router_addr, router_port)
-            thread = threading.Thread(target=send_data_packet_in_window, args=(packet, router_addr, router_port))
-            thread.start()
-            # thread.join()
-            threads.append(thread)
-        for t in threads:
-            t.join()
-        send_packets = send_packets[WINDOW_SIZE:]
-
-    send_packets.clear()
-
-    print("Finishing server data ……")
-    finished = False
-    while not finished:
-        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        packet_syn = Packet(packet_type=FIN,
-                            seq_num=sequence_num,
-                            peer_ip_addr=peer_ip,
-                            peer_port=server_port,
-                            payload="".encode("utf-8"))
-        conn.sendto(packet_syn.to_bytes(), (router_addr, router_port))
-        try:
-            conn.settimeout(TIMEOUT)
-            response, sender = conn.recvfrom(1024)
-            packet_response = Packet.from_bytes(response)
-            if packet_response.packet_type == ACK:
-                finished = True
-                print("Receive ACK from Client.Server data finish !")
-        except socket.timeout:
-            print("Finish not ok")
-        finally:
-            conn.close()
-
-
-def send_data_packet_in_window(packet, router_addr, router_port):
-    while packet.packet_type != ACK:
-        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        conn.sendto(packet.to_bytes(), (router_addr, router_port))
-        try:
-            conn.settimeout(TIMEOUT)
-            response, sender = conn.recvfrom(1024)
-            packet = Packet.from_bytes(response)
-            if packet.packet_type == ACK:
-                conn.close()
-                break
-        except socket.timeout:
-            print("Response timeout ! Resend packet " + str(packet.seq_num))
-        finally:
-            conn.close()
+    send_data_helper.send_data(msg, server_addr, server_port)
 
 
 # Usage python udp_server.py [--port port-number]

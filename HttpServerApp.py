@@ -380,3 +380,10 @@ if __name__ == '__main__':
 
 # httpc get -v 'http://localhost:8080/ReadOnly/a.txt'
 # httpc post -v -d 'This_is_a_modification' 'http://localhost:8080/ReadOnly/a.txt'
+
+#httpfs -v -p 8007
+# router_x64.exe --port=3000 --drop-rate=0.2 --max-delay=10ms --seed=1
+# httpc get -v 'http://localhost:8007'
+# httpc get -v 'http://localhost:8007/a.txt'
+# httpc post -v -d 'This_is_a_modification_udp' 'http://localhost:8007/a.txt'
+# httpc post -v -d 'This_is_a_modification_udp2' -h overwrite=true 'http://localhost:8007/b.txt'
