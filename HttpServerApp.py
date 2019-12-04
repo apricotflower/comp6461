@@ -4,10 +4,6 @@ import os
 import mimetypes
 import threading
 import send_data_helper
-import receive_data_helper
-import time
-
-import ipaddress
 
 from packet import Packet
 
@@ -30,6 +26,11 @@ CLIENT_PORT = 41830
 GET = "get"
 POST = "post"
 READ_ONLY_FOLDER = "readonly"
+
+established = False
+record = []
+pre_seq = 0
+request = ""
 
 threadLock = threading.Lock()
 
@@ -245,17 +246,26 @@ def post_operation(path):
 
 def run_server(port):
     global request
+    global established
+    global record
+    global pre_seq
     buffer = {}
-    record = []
-    request = ""
+    # record = []
+    # request = ""
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    established = False
-    pre_seq = 0
+    # established = False
+    # pre_seq = 0
 
     try:
+        # try:
         conn.bind((SERVER_ADDRESS, port))
         print('Server is listening at', port)
+        # except OSError:
+        #     pass
         while True:
+            # print("listen again")
+            # a = conn.recvfrom(1024)
+            # print(a)
             data, sender = conn.recvfrom(1024)
             packet_response = Packet.from_bytes(data)
             sender_addr = packet_response.peer_ip_addr
@@ -307,13 +317,11 @@ def run_server(port):
                                 pre_seq = pre_seq + len(buffer)
                                 buffer.clear()
 
-                    elif packet_response.packet_type == FIN: #BUG，收到FIN返回ACK，ACK丢失对面等待重发FIN，这边已经进去handle_client不在监听，无法发送ACK
+                    elif packet_response.packet_type == FIN:
                         # print("Receive FIN!" + " The lengh of buffer is " + str(len(buffer)))
                         # print(buffer.keys())
                         print(request)
-                        # time.sleep(5)
                         handle_client("localhost", 41830)
-
     finally:
         conn.close()
 
@@ -328,6 +336,9 @@ def check_window(buffer):
 
 def handle_client( server_addr, server_port):
     global request
+    global record
+    global pre_seq
+    global established
     request = request.split('\r\n')
     line_1 = request[0].split()
     method = line_1[0]
@@ -347,6 +358,10 @@ def handle_client( server_addr, server_port):
 
     send_data_helper.send_data(msg,server_addr, server_port)
 
+    established = False
+    request = ""
+    record.clear()
+    pre_seq = 0
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'httpfs is a simple file server. usage: httpfs [-v] [-p PORT] [-d PATH-TO-DIR]')

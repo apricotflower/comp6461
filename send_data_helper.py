@@ -90,7 +90,7 @@ def send_data(msg, server_addr, server_port):
 
     send_packets.clear()
 
-    print("Finishing client data ……")
+    print("Finishing data ……")
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     packet_fin = Packet(packet_type=FIN,
                         seq_num=sequence_num,
@@ -99,3 +99,5 @@ def send_data(msg, server_addr, server_port):
                         payload="".encode("utf-8"))
     for i in range(0,20):
         conn.sendto(packet_fin.to_bytes(), (router_addr, router_port))
+
+    conn.close()
