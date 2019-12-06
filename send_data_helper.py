@@ -25,13 +25,18 @@ def check_window(buffer):
 
 
 def send_data_packet_in_window(packet, router_addr, router_port):
-    while packet.packet_type != ACK:
+    init_seq = packet.seq_num
+    rec_seq = -1
+    # while packet.packet_type != ACK:
+    while rec_seq != init_seq:
         conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # conn.bind((sender_addr,sender_port))
         conn.sendto(packet.to_bytes(), (router_addr, router_port))
         try:
             conn.settimeout(TIMEOUT)
             response, sender = conn.recvfrom(1024)
             packet = Packet.from_bytes(response)
+            rec_seq = packet.seq_num
             if packet.packet_type == ACK:
                 conn.close()
                 break
@@ -41,7 +46,7 @@ def send_data_packet_in_window(packet, router_addr, router_port):
             conn.close()
 
 
-def send_data(msg, server_addr, server_port):
+def send_data(msg, server_addr, server_port,):
     router_addr = "localhost"
     router_port = 3000
     sequence_num = 1
@@ -67,6 +72,8 @@ def send_data(msg, server_addr, server_port):
         #     sequence_num = 1
         msg_process = msg_process[DATA_LEN:]
 
+    # conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # conn.bind(("", 8001))
     print("Start sending windows ……")
     # while len(send_packets) != 0:
     threads = []
@@ -92,6 +99,7 @@ def send_data(msg, server_addr, server_port):
 
     print("Finishing data ……")
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # conn.bind((sender_addr, sender_port))
     packet_fin = Packet(packet_type=FIN,
                         seq_num=sequence_num,
                         peer_ip_addr=peer_ip,

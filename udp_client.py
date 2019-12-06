@@ -3,7 +3,6 @@ import ipaddress
 import socket
 import threading
 import send_data_helper
-import receive_data_helper
 
 from packet import Packet
 
@@ -24,6 +23,7 @@ def handshake(router_addr, router_port, server_addr, server_port):
     while not established:
         ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
         conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # conn.bind(("", 41830))
         print("First handshake SYN is sending ……")
         packet_syn = Packet(packet_type=SYN,
                         seq_num=0,

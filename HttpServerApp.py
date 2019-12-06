@@ -4,6 +4,7 @@ import os
 import mimetypes
 import threading
 import send_data_helper
+import time
 
 from packet import Packet
 
@@ -136,6 +137,7 @@ def get_operation(path):
     head = head + add_headers(GET)
 
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
+    # send_data_helper.send_data(response, "localhost", 41830)
     return response
     # conn.sendall(response.encode('utf-8'))
     # conn.close()
@@ -208,6 +210,7 @@ def post_operation(path):
     head = head + temp_head
 
     response = head.strip("\r\n") + "\r\n\r\n" + body.strip("\r\n")
+    # send_data_helper.send_data(response, "localhost", 41830)
     return response
     # conn.sendall(response.encode('utf-8'))
     # conn.close()
@@ -305,6 +308,7 @@ def run_server(port):
                     if packet_response.packet_type == DATA:
                         if packet_response.seq_num == pre_seq + 1:
                             request = request + packet_response.payload.decode("utf-8")
+                            print(packet_response.payload.decode("utf-8"))
                             pre_seq = pre_seq + 1
                         else:
                             buffer[sender_seq] = packet_response
@@ -347,14 +351,17 @@ def handle_client( server_addr, server_port):
         print("request_path: " + request_path)
         print("method: " + method)
     if method.lower() == GET:
-        # thread = threading.Thread(target=get_operation, args=(request_path, conn))
+        # thread = threading.Thread(target=get_operation, args=(request_path))
+        # thread.start()
+        # thread.join()
         msg = get_operation(request_path)
     elif method.lower() == POST:
-        # thread = threading.Thread(target=post_operation, args=(request_path, conn))
+        # thread = threading.Thread(target=post_operation, args=(request_path))
+        # thread.start()
+        # thread.join()
         msg = post_operation(request_path)
 
-    # thread.start()
-    # thread.join()
+
 
     send_data_helper.send_data(msg,server_addr, server_port)
 
@@ -362,6 +369,8 @@ def handle_client( server_addr, server_port):
     request = ""
     record.clear()
     pre_seq = 0
+    time.sleep(5)
+    print("Can input again ……")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'httpfs is a simple file server. usage: httpfs [-v] [-p PORT] [-d PATH-TO-DIR]')

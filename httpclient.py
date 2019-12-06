@@ -1,5 +1,7 @@
 import socket
 from urllib.parse import urlparse
+import udp_client
+
 
 def doGet(url, cmd, headtype, filename = None):
     _url = urlparse(url)
@@ -14,8 +16,8 @@ def doGet(url, cmd, headtype, filename = None):
         path = '/'
     if urlQuery != "":
         path += "?" + urlQuery
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.connect((host, port))
+    # tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # tcp_socket.connect((host, port))
     request_line = 'GET ' + path + ' HTTP/1.1\r\n'
     request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
     if headtype.__len__() == 0:
@@ -26,9 +28,12 @@ def doGet(url, cmd, headtype, filename = None):
             head += h
         request_data = request_line + request_headers + head + '\r\n'
         # request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype + '; charset=utf-8 \r\n' + '\r\n'
-    msg = bytes(request_data, encoding = "utf8")
-    tcp_socket.send(msg)
-    rec = str(tcp_socket.recv(5000), encoding= "utf8")
+    # msg = bytes(request_data, encoding = "utf8")
+
+    udp_client.run_client(request_data,host,port)
+    rec = udp_client.receive()
+    # tcp_socket.send(msg)
+    # rec = str(tcp_socket.recv(5000), encoding= "utf8")
     rec_mes = rec.splitlines()
     if rec_mes.__len__ != None:
         mes_status = rec_mes[0]
@@ -95,7 +100,7 @@ def doGet(url, cmd, headtype, filename = None):
             if redirect == 1:
                 doGet(location, cmd, headtype, filename)
         file.close()
-    tcp_socket.close()
+    # tcp_socket.close()
 
 def doPost(type, url, headtype, attach, filename=None,detail=None):
     if type == '-d':
@@ -113,8 +118,8 @@ def doPost(type, url, headtype, attach, filename=None,detail=None):
     path = _url.path
     if path == "":
         path = '/'
-    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    tcp_socket.connect((host, port))
+    # tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # tcp_socket.connect((host, port))
     request_line = 'POST ' + path + ' HTTP/1.1\r\n'
     request_headers = 'Host: ' + host + ':' + str(port) + '\r\n'
     # request_data = request_line + request_headers + 'Connection: Keep-Alive\r\n' + headtype +'\r\n'
@@ -126,8 +131,10 @@ def doPost(type, url, headtype, attach, filename=None,detail=None):
     # there is a blank in front of data request is the whole request message of json
     request = request_data + contentLength + '\r\n' + inline
     msg = bytes(request, encoding="utf8")
-    tcp_socket.send(msg)
-    rec = str(tcp_socket.recv(5000), encoding = "utf-8")
+    # tcp_socket.send(msg)
+    # rec = str(tcp_socket.recv(5000), encoding = "utf-8")
+    udp_client.run_client(msg,host,port)
+    rec = udp_client.receive()
     rec_mes = rec.splitlines()
     if rec_mes.__len__ != None:
         mes_status = rec_mes[0]
@@ -170,7 +177,7 @@ def doPost(type, url, headtype, attach, filename=None,detail=None):
         file.close()
         if redirect == 1:
             doPost(type, location, headtype, inline, filename)
-    tcp_socket.close()
+    # tcp_socket.close()
 
 # if __name__ == '__main__':
 def main(raw_input):
